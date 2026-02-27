@@ -16,7 +16,7 @@ from config import (
 
 
 def render(df, time_axis, sampling_rate, make_chart_fn):
-    st.title("📐 Math Analysis")
+    st.title("📉 Signal Analysis")
     st.divider()
 
     # ── Frequency Analysis ─────────────────────────────────────────────────────
@@ -68,6 +68,7 @@ def render(df, time_axis, sampling_rate, make_chart_fn):
     st.divider()
 
     # ── Acceleration ───────────────────────────────────────────────────────────
+    st.subheader("Acceleration (Derivative)")
     with st.expander("⚡ Acceleration", expanded=False):
         accel_cols = [c for c in ACCEL_CHANNELS.keys() if c in df.columns]
         if accel_cols:
@@ -78,6 +79,7 @@ def render(df, time_axis, sampling_rate, make_chart_fn):
     st.divider()
 
     # ── Displacement ───────────────────────────────────────────────────────────
+    st.subheader("Displacement (Integral)")
     with st.expander("📏 Displacement", expanded=False):
         disp_cols = [c for c in DISP_CHANNELS.keys() if c in df.columns]
         if disp_cols:
@@ -88,9 +90,12 @@ def render(df, time_axis, sampling_rate, make_chart_fn):
     st.divider()
 
     # ── Acceleration at Peak Displacement ─────────────────────────────────────
+    st.subheader("Maximum A for Slope Stability")
     with st.expander("🎯 Acceleration at Peak Displacement", expanded=False):
         cols = st.columns(3)
         labels = ['Vertical', 'Longitudinal', 'Transversal']
+
+        channel_colors = ['#00897B', '#E53935', '#5C6BC0']
 
         for i, (disp_col, accel_col) in enumerate(ACCEL_AT_PEAK_MAP.items()):
             if disp_col not in df.columns or accel_col not in df.columns:
@@ -101,10 +106,21 @@ def render(df, time_axis, sampling_rate, make_chart_fn):
             accel_val = acceleration_at_peak(accel_sig, peak_idx)
             accel_g = acceleration_in_g(accel_val)
             peak_time = time_axis[peak_idx]
+            color = channel_colors[i]
 
             with cols[i]:
                 st.markdown(f"**{labels[i]}**")
                 st.metric("Peak Displacement", f"{abs(peak_val):.4f} mm")
                 st.metric("Acceleration at Peak", f"{abs(accel_val):.2f} mm/s²")
-                st.metric("Acceleration in g", f"{abs(accel_g):.4f} g")
+                st.markdown(
+                    f"<div style='margin-top:8px;'>"
+                    f"<div style='font-size:12px;color:#888;margin-bottom:2px;'>Acceleration in g</div>"
+                    f"<div style='display:flex;align-items:baseline;gap:4px;'>"
+                    f"<div style='font-size:42px;font-weight:700;color:{color};line-height:1;'>"
+                    f"{abs(accel_g):.4f}</div>"
+                    f"<div style='font-size:20px;font-weight:600;color:{color};'>g</div>"
+                    f"</div>"
+                    f"</div>",
+                    unsafe_allow_html=True
+                )
                 st.caption(f"At t = {peak_time:.2f} ms")

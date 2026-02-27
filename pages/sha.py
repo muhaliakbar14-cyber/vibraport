@@ -167,45 +167,51 @@ def render(df, time_axis, sampling_rate):
             f"Peak Vector Sum = {best['pvs']} mm/s"
         )
 
-        # ── Ranked Recommendations ─────────────────────────────────────────
-        st.subheader("🏆 Top Recommendations")
-        st.caption("Ranked by combined score of Peak Vector Sum and dominant frequency. Lower PVS and higher frequency = safer.")
+    # ── Frequency Band Analysis ────────────────────────────────────────
+        st.subheader("📊 Best Results by Frequency Band")
+        st.caption("Minimum Peak Vector Sum within each dominant frequency range. Band assigned using PPV-weighted average frequency — each channel's frequency is weighted by its PPV, so the dominant axis drives the result.")
 
-        n_top = st.slider("Number of recommendations to show", 3, 20, 5)
+        freq_bands = [
+            ("0 – 4 Hz",    0,   4),
+            ("4 – 16 Hz",   4,  16),
+            ("16 – 64 Hz",  16, 64),
+            ("64 – 250 Hz", 64, 250),
+        ]
 
-        pvs_vals = results_df['Peak Vector Sum (mm/s)'].values
-        freq_vert = results_df['Freq Vert (Hz)'].values
-        freq_long = results_df['Freq Long (Hz)'].values
-        freq_tran = results_df['Freq Tran (Hz)'].values
-        min_freq = np.minimum(np.minimum(freq_vert, freq_long), freq_tran)
-
-        pvs_norm = (pvs_vals - pvs_vals.min()) / (pvs_vals.max() - pvs_vals.min() + 1e-9)
-        freq_norm = (min_freq - min_freq.min()) / (min_freq.max() - min_freq.min() + 1e-9)
-
-        score = 0.6 * pvs_norm - 0.4 * freq_norm
         results_df = results_df.copy()
-        results_df['Score'] = score
 
-        top_df = results_df.nsmallest(n_top, 'Score').drop(columns=['Score'])
+        band_rows = []
+        for label, f_low, f_high in freq_bands:
+            mask = (results_df['Freq Vector Sum (Hz)'] >= f_low) & (results_df['Freq Vector Sum (Hz)'] < f_high)
+            band_df = results_df[mask]
+            if band_df.empty:
+                band_rows.append({
+                    'Frequency Band': label,
+                    'Hole Delay (ms)': '—',
+                    'Row Delay (ms)': '—',
+                    'PPV Vert (mm/s)': '—',
+                    'PPV Long (mm/s)': '—',
+                    'PPV Tran (mm/s)': '—',
+                    'Peak Vector Sum (mm/s)': '—',
+                    'Freq Vector Sum (Hz)': '—',
+                    'Count in Band': 0,
+                })
+            else:
+                best_row = band_df.loc[band_df['Peak Vector Sum (mm/s)'].idxmin()]
+                band_rows.append({
+                    'Frequency Band': label,
+                    'Hole Delay (ms)': int(best_row['Hole Delay (ms)']),
+                    'Row Delay (ms)': int(best_row['Row Delay (ms)']),
+                    'PPV Vert (mm/s)': f"{best_row['PPV Vert (mm/s)']:.2f}",
+                    'PPV Long (mm/s)': f"{best_row['PPV Long (mm/s)']:.2f}",
+                    'PPV Tran (mm/s)': f"{best_row['PPV Tran (mm/s)']:.2f}",
+                    'Peak Vector Sum (mm/s)': f"{best_row['Peak Vector Sum (mm/s)']:.2f}",
+                    'Freq Vector Sum (Hz)': f"{best_row['Freq Vector Sum (Hz)']:.2f}",
+                    'Count in Band': len(band_df),
+                })
 
-        def highlight_top(row):
-            if row.name == top_df.index[0]:
-                return ['background-color: #c8e6c9'] * len(row)
-            return ['background-color: #f1f8e9'] * len(row)
-
-        st.dataframe(
-            top_df.style.apply(highlight_top, axis=1).format({
-                'PPV Vert (mm/s)': '{:.2f}',
-                'PPV Long (mm/s)': '{:.2f}',
-                'PPV Tran (mm/s)': '{:.2f}',
-                'Peak Vector Sum (mm/s)': '{:.2f}',
-                'Freq Vert (Hz)': '{:.2f}',
-                'Freq Long (Hz)': '{:.2f}',
-                'Freq Tran (Hz)': '{:.2f}',
-            }),
-            use_container_width=True
-        )
-        st.caption("🟢 Best overall | 🟩 Other strong candidates")
+        band_summary_df = pd.DataFrame(band_rows)
+        st.dataframe(band_summary_df, use_container_width=True, hide_index=True)
 
         st.subheader("Simulation Results")
 
@@ -224,6 +230,7 @@ def render(df, time_axis, sampling_rate):
                 'Freq Vert (Hz)': '{:.2f}',
                 'Freq Long (Hz)': '{:.2f}',
                 'Freq Tran (Hz)': '{:.2f}',
+                'Freq Vector Sum (Hz)': '{:.2f}',
             }),
             use_container_width=True
         )

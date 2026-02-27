@@ -7,11 +7,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-from regression.scaled_distance import (
-    standard_scaled_distance,
-    optimized_scaled_distance,
-    find_best_exponent,
-)
+from regression.scaled_distance import standard_scaled_distance
 from regression.fitting import (
     fit_power_law,
     regression_curve,
@@ -21,119 +17,133 @@ from config import VELOCITY_CHANNELS
 
 
 def render(uploaded_files_dict, ppv_registry):
-    st.title("📈 PPV vs Scaled Distance Analysis")
-    st.caption("Linear regression of Peak Particle Velocity against scaled distance.")
-    st.divider()
-
-    # ── Formula selection ──────────────────────────────────────────────────────
-    st.subheader("Regression Formula")
-    formula = st.radio(
-        "Select formula type",
-        ["Standard Scaled Distance  —  PPV = K × (D/√Q)^n",
-         "Two-Variable  —  PPV = K × Q^α × D^β"],
-        horizontal=True
-    )
-    use_two_var = "Two-Variable" in formula
+    st.title("📈 Attenuation & Safe Zone")
+    st.caption("Linear regression of Peak Particle Velocity against scaled distance.Uses the standard scaled distance formula: **PPV = K × (D / √Q)^n**")
     st.divider()
 
     # ── Data input table ───────────────────────────────────────────────────────
     st.subheader("Blast Event Data")
-    st.caption("PPV values are auto-filled from uploaded files. You can edit any value manually.")
+    _info_col, _save_col, _load_col = st.columns([3, 1, 1])
+ 
+    EMPTY_ROW = {
+        'No.': 1,
+        'Source': '',
+        'Charge (kg)': 0.0,
+        'Distance (m)': 0.0,
+        'Vertical (mm/s)': 0.0,
+        'Longitudinal (mm/s)': 0.0,
+        'Transversal (mm/s)': 0.0,
+    }
 
-    if 'ppv_charges' not in st.session_state:
-        st.session_state.ppv_charges = {}
-    if 'ppv_distances' not in st.session_state:
-        st.session_state.ppv_distances = {}
-    if 'ppv_manual_rows' not in st.session_state:
-        st.session_state.ppv_manual_rows = []
-    if 'ppv_vert_override' not in st.session_state:
-        st.session_state.ppv_vert_override = {}
-    if 'ppv_long_override' not in st.session_state:
-        st.session_state.ppv_long_override = {}
-    if 'ppv_tran_override' not in st.session_state:
-        st.session_state.ppv_tran_override = {}
+    # ── Initialise table from uploaded files ──────────────────────────────────
+    if 'ppv_table' not in st.session_state:
+        st.session_state.ppv_table = pd.DataFrame([EMPTY_ROW])
 
-    if not uploaded_files_dict:
-        st.info("Upload CSV files from the sidebar to auto-fill PPV values.")
+    # Ensure No. column exists for tables loaded before this feature was added
+    if 'No.' not in st.session_state.ppv_table.columns:
+        st.session_state.ppv_table.insert(0, 'No.', range(1, len(st.session_state.ppv_table) + 1))
 
-    # Headers
-    h0, h1, h2, h3, h4, h5 = st.columns([2.5, 1.5, 1.5, 1.5, 1.5, 1.5])
-    h0.markdown("**Source**")
-    h1.markdown("**Charge (kg)**")
-    h2.markdown("**Distance (m)**")
-    h3.markdown("**Vert (mm/s)**")
-    h4.markdown("**Long (mm/s)**")
-    h5.markdown("**Tran (mm/s)**")
-
-    data_rows = []
-
-    # Auto-filled rows from uploaded files
+    # Merge any newly uploaded files into the table
+    existing_sources = set(st.session_state.ppv_table['Source'].tolist())
+    new_rows = []
     for fname in uploaded_files_dict.keys():
-        registry = ppv_registry.get(fname, {'vert': 0.0, 'long': 0.0, 'tran': 0.0})
-        auto_vert = registry['vert']
-        auto_long = registry['long']
-        auto_tran = registry['tran']
+        if fname not in existing_sources:
+            registry = ppv_registry.get(fname, {'vert': 0.0, 'long': 0.0, 'tran': 0.0})
+            new_rows.append({
+                'No.': len(st.session_state.ppv_table) + len(new_rows) + 1,
+                'Source': fname,
+                'Charge (kg)': 0.0,
+                'Distance (m)': 0.0,
+                'Vertical (mm/s)': float(registry['vert']),
+                'Longitudinal (mm/s)': float(registry['long']),
+                'Transversal (mm/s)': float(registry['tran']),
+            })
+    if new_rows:
+        new_df = pd.DataFrame(new_rows)
+        current = st.session_state.ppv_table
+        if len(current) == 1 and current.iloc[0]['Source'] == '' and current.iloc[0]['Charge (kg)'] == 0.0:
+            st.session_state.ppv_table = new_df
+        else:
+            st.session_state.ppv_table = pd.concat([current, new_df], ignore_index=True)
 
-        c0, c1, c2, c3, c4, c5 = st.columns([2.5, 1.5, 1.5, 1.5, 1.5, 1.5])
-        c0.caption(fname)
-        charge = c1.number_input("", min_value=0.0, value=None,
-            placeholder="kg", key=f"ppv_charge_{fname}",
-            label_visibility="collapsed")
-        distance = c2.number_input("", min_value=0.0, value=None,
-            placeholder="m", key=f"ppv_dist_{fname}",
-            label_visibility="collapsed")
-        vert = c3.number_input("", min_value=0.0,
-            value=float(auto_vert), key=f"ppv_vert_{fname}",
-            label_visibility="collapsed")
-        long_ = c4.number_input("", min_value=0.0,
-            value=float(auto_long), key=f"ppv_long_{fname}",
-            label_visibility="collapsed")
-        tran = c5.number_input("", min_value=0.0,
-            value=float(auto_tran), key=f"ppv_tran_{fname}",
-            label_visibility="collapsed")
+    # ── Save / Load / Info — one clean row ────────────────────────────────────
+    _save_col, _load_col, _info_col = st.columns([1, 1, 4])
 
-        data_rows.append({
-            'Charge (kg)': charge,
-            'Distance (m)': distance,
-            'Vertical (mm/s)': vert,
-            'Longitudinal (mm/s)': long_,
-            'Transversal (mm/s)': tran,
-        })
+    with _save_col:
+        csv_bytes = st.session_state.ppv_table.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="💾 Save Table",
+            data=csv_bytes,
+            file_name="blast_event_data.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
 
-    # Manual rows
-    for i, row in enumerate(st.session_state.ppv_manual_rows):
-        c0, c1, c2, c3, c4, c5 = st.columns([2.5, 1.5, 1.5, 1.5, 1.5, 1.5])
-        c0.caption(f"Manual {i+1}")
-        st.session_state.ppv_manual_rows[i]['Charge (kg)'] = c1.number_input(
-            "", min_value=0.0, value=None, placeholder="kg",
-            key=f"man_charge_{i}", label_visibility="collapsed")
-        st.session_state.ppv_manual_rows[i]['Distance (m)'] = c2.number_input(
-            "", min_value=0.0, value=None, placeholder="m",
-            key=f"man_dist_{i}", label_visibility="collapsed")
-        st.session_state.ppv_manual_rows[i]['Vertical (mm/s)'] = c3.number_input(
-            "", min_value=0.0, value=None, placeholder="mm/s",
-            key=f"man_vert_{i}", label_visibility="collapsed")
-        st.session_state.ppv_manual_rows[i]['Longitudinal (mm/s)'] = c4.number_input(
-            "", min_value=0.0, value=None, placeholder="mm/s",
-            key=f"man_long_{i}", label_visibility="collapsed")
-        st.session_state.ppv_manual_rows[i]['Transversal (mm/s)'] = c5.number_input(
-            "", min_value=0.0, value=None, placeholder="mm/s",
-            key=f"man_tran_{i}", label_visibility="collapsed")
-        data_rows.append(st.session_state.ppv_manual_rows[i])
+    with _load_col:
+        loaded_file = st.file_uploader(
+            "📂 Load Table", type="csv",
+            key="ppv_load_csv", label_visibility="visible"
+        )
+        if loaded_file:
+            try:
+                loaded_df = pd.read_csv(loaded_file)
+                for col in EMPTY_ROW.keys():
+                    if col not in loaded_df.columns:
+                        if col == 'No.':
+                            loaded_df[col] = range(1, len(loaded_df) + 1)
+                        elif col == 'Source':
+                            loaded_df[col] = ''
+                        else:
+                            loaded_df[col] = 0.0
+                st.session_state.ppv_table = loaded_df[list(EMPTY_ROW.keys())]
+                st.rerun()
+            except Exception as e:
+                st.error(f"Failed to load file: {e}")
 
-    # Add/remove manual rows
-    st.divider()
-    btn1, btn2 = st.columns(2)
-    if btn1.button("➕ Add Manual Row"):
-        st.session_state.ppv_manual_rows.append({
-            'Charge (kg)': 0.0, 'Distance (m)': 0.0,
-            'Vertical (mm/s)': 0.0, 'Longitudinal (mm/s)': 0.0,
-            'Transversal (mm/s)': 0.0
-        })
-        st.rerun()
-    if btn2.button("➖ Remove Last Manual Row") and st.session_state.ppv_manual_rows:
-        st.session_state.ppv_manual_rows.pop()
-        st.rerun()
+    with _info_col:
+        st.info("Use **Tab** to confirm and move between cells · **Arrow keys** to navigate · **Click the bottom row** to add a new entry")
+
+    # ── Editable table ─────────────────────────────────────────────────────────
+    # Use on_change callback to persist edits to session state only when the
+    # user commits a change — avoids the double-input revert bug while still
+    # keeping session state up to date for Save and regression.
+    def _sync_table():
+        if 'ppv_data_editor' in st.session_state:
+            state = st.session_state['ppv_data_editor']
+            df = st.session_state.ppv_table.copy()
+            # Apply edits
+            for idx, changes in state.get('edited_rows', {}).items():
+                for col, val in changes.items():
+                    df.at[idx, col] = val
+            # Apply additions
+            for row in state.get('added_rows', []):
+                new_row = {c: row.get(c, 0.0 if c != 'Source' else '') for c in df.columns}
+                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+            # Apply deletions
+            deleted = state.get('deleted_rows', [])
+            if deleted:
+                df = df.drop(index=deleted).reset_index(drop=True)
+            # Renumber No. column
+            df['No.'] = range(1, len(df) + 1)
+            st.session_state.ppv_table = df
+
+    edited_df = st.data_editor(
+        st.session_state.ppv_table,
+        use_container_width=True,
+        num_rows="dynamic",
+        column_config={
+            'No.':                  st.column_config.NumberColumn("No.", width="small", disabled=True),
+            'Source':               st.column_config.TextColumn("Source", width="medium"),
+            'Charge (kg)':          st.column_config.NumberColumn("Charge (kg)",   min_value=0.0, format="%.1f"),
+            'Distance (m)':         st.column_config.NumberColumn("Distance (m)",  min_value=0.0, format="%.1f"),
+            'Vertical (mm/s)':      st.column_config.NumberColumn("Vert (mm/s)",   min_value=0.0, format="%.2f"),
+            'Longitudinal (mm/s)':  st.column_config.NumberColumn("Long (mm/s)",   min_value=0.0, format="%.2f"),
+            'Transversal (mm/s)':   st.column_config.NumberColumn("Tran (mm/s)",   min_value=0.0, format="%.2f"),
+        },
+        key="ppv_data_editor",
+        on_change=_sync_table,
+    )
+    data_rows = edited_df.to_dict('records')
 
     st.divider()
 
@@ -146,8 +156,8 @@ def render(uploaded_files_dict, ppv_registry):
 
     # ── Calculate Regression ───────────────────────────────────────────────────
     if st.button("📐 Calculate Regression", type="primary"):
-        data = pd.DataFrame(data_rows).dropna()
-        data = data[(data['Charge (kg)'] > 0) & (data['Distance (m)'] > 0)]
+        data = pd.DataFrame(data_rows)
+        data = data[(data['Charge (kg)'] > 0) & (data['Distance (m)'] > 0)].dropna(subset=['Charge (kg)', 'Distance (m)', 'Vertical (mm/s)', 'Longitudinal (mm/s)', 'Transversal (mm/s)'])
 
         if len(data) < 4:
             st.error("Please enter at least 4 valid data points.")
@@ -182,24 +192,11 @@ def render(uploaded_files_dict, ppv_registry):
         D = distances[valid]
         V = max_ppv[valid]
 
-        # Compute scaled distance
-        if use_two_var:
-            best_exp = find_best_exponent(D, Q, V)
-            SD = optimized_scaled_distance(D, Q, best_exp)
-            xaxis_title = f"D · Q^{best_exp:.3f}"
-            eq_template = lambda K, n: f"PPV = {K} × Q^{best_exp:.3f} × D^{n}"
-            x_pts = {
-                ch: optimized_scaled_distance(D, Q, best_exp)
-                for ch in channels
-            }
-        else:
-            SD = standard_scaled_distance(D, Q)
-            xaxis_title = "D · Q^-0.500"
-            eq_template = lambda K, n: f"PPV = {K} × SD^{n}"
-            x_pts = {
-                ch: standard_scaled_distance(D, Q)
-                for ch in channels
-            }
+        # Compute scaled distance — standard formula: SD = D / √Q
+        SD = standard_scaled_distance(D, Q)
+        xaxis_title = "Scaled Distance — D / √Q (m/kg^0.5)"
+        eq_template = lambda K, n: f"PPV = {K} × SD^{n}"
+        x_pts = {ch: standard_scaled_distance(D, Q) for ch in channels}
 
         fit = fit_power_law(SD, V)
         x_range = np.linspace(SD.min(), SD.max(), 200)
@@ -250,3 +247,177 @@ def render(uploaded_files_dict, ppv_registry):
         st.markdown(f"**Regression:** {eq_template(fit['K'], fit['n'])}")
         st.markdown(f"**Confidence (95%):** {eq_template(fit['K_conf'], fit['n'])}")
         st.metric("Correlation Coefficient (r)", fit['r'])
+
+        # Store regression results in session state for the calculator
+        st.session_state['ppv_fit'] = fit
+
+    # ── Safe Zone Calculator ───────────────────────────────────────────────────
+    if 'ppv_fit' in st.session_state:
+        fit = st.session_state['ppv_fit']
+
+        st.divider()
+        st.subheader("🛡️ Safe Zone Calculator")
+        st.info(
+            "⚠️ Predictions are based on the **95% confidence line**, "
+            "which is more conservative than the regression line. "
+            "This is the recommended approach for safety assessments.",
+            icon=None
+        )
+
+        K = fit['K_conf']
+        n = fit['n']
+
+        col_d, col_q, col_ppv = st.columns(3)
+
+        with col_d:
+            st.markdown("**📏 Min Distance**")
+            q_d = st.number_input("Charge (kg)", min_value=0.1, value=100.0, step=1.0, key="sz_q_d")
+            ppv_d = st.number_input("PPV Limit (mm/s)", min_value=0.01, value=5.0, step=0.1, key="sz_ppv_d")
+            d_min = (q_d ** 0.5) * (ppv_d / K) ** (1 / n)
+            st.metric("Minimum Safe Distance", f"{d_min:.1f} m")
+
+        with col_q:
+            st.markdown("**💣 Max Charge**")
+            d_q = st.number_input("Distance (m)", min_value=0.1, value=100.0, step=1.0, key="sz_d_q")
+            ppv_q = st.number_input("PPV Limit (mm/s)", min_value=0.01, value=5.0, step=0.1, key="sz_ppv_q")
+            q_max = (d_q ** 2) / ((ppv_q / K) ** (2 / n))
+            st.metric("Maximum Allowable Charge", f"{q_max:.1f} kg")
+
+        with col_ppv:
+            st.markdown("**📡 Predicted PPV**")
+            q_p = st.number_input("Charge (kg)", min_value=0.1, value=100.0, step=1.0, key="sz_q_p")
+            d_p = st.number_input("Distance (m)", min_value=0.1, value=100.0, step=1.0, key="sz_d_p")
+            ppv_pred = K * ((d_p / (q_p ** 0.5)) ** n)
+            st.metric("Predicted PPV", f"{ppv_pred:.3f} mm/s")
+
+    # ── SNI 7571 Compliance Tables ─────────────────────────────────────────────
+    if 'ppv_fit' in st.session_state:
+        fit = st.session_state['ppv_fit']
+
+        K = fit['K_conf']
+        n = fit['n']
+
+        st.divider()
+        st.subheader("📋 SNI 7571 Compliance Tables")
+        st.caption("Based on SNI 7571:2023 — Baku Tingkat Getaran Peledakan pada Kegiatan Tambang Terbuka terhadap Bangunan")
+
+        # SNI 7571 PPV limits per class per frequency range
+        SNI_LIMITS = {
+            "0 – 5 Hz":   {"Class 1": 2,  "Class 2": 3,  "Class 3": 5,  "Class 4": 7,  "Class 5": 12},
+            "5 – 20 Hz":  {"Class 1": 3,  "Class 2": 5,  "Class 3": 7,  "Class 4": 12, "Class 5": 24},
+            "20 – 100 Hz":{"Class 1": 5,  "Class 2": 7,  "Class 3": 12, "Class 4": 20, "Class 5": 40},
+        }
+
+        CLASS_DESCRIPTIONS = {
+            "Class 1": "Very sensitive / historic buildings",
+            "Class 2": "Sensitive buildings / light residential",
+            "Class 3": "General residential buildings",
+            "Class 4": "Commercial buildings / light industrial",
+            "Class 5": "Heavy industrial buildings",
+        }
+
+        _freq_col, _freqinfo_col = st.columns([1, 2])
+        with _freq_col:
+            freq_range = st.selectbox(
+                "Frequency Range",
+                list(SNI_LIMITS.keys()),
+                help="Select based on the dominant frequency of your signal (from Signal Analysis page)"
+            )
+        with _freqinfo_col:
+            st.info("⚠️ Verify dominant frequency from your **Signal Analysis** page before selecting a range.", icon=None)
+        ppv_limits = SNI_LIMITS[freq_range]
+        classes = list(ppv_limits.keys())
+        ppv_values = list(ppv_limits.values())
+
+        # Helper functions
+        def calc_min_distance(charge, ppv_lim):
+            return (charge ** 0.5) * (ppv_lim / K) ** (1 / n)
+
+        def calc_max_charge(distance, ppv_lim):
+            return (distance ** 2) / ((ppv_lim / K) ** (2 / n))
+
+        # ── Table 1: Safe Distance Prediction ─────────────────────────────────
+        st.markdown("### 📏 Safe Distance Prediction Table")
+        st.caption("Enter charge values (kg) — table shows minimum safe distance (m) for each building class.")
+
+        if 'sni_charges' not in st.session_state:
+            st.session_state.sni_charges = [100.0]
+
+        # Add/remove row buttons
+        b1, b2, _ = st.columns([1, 1, 4])
+        if b1.button("➕ Add Charge Row", key="add_charge"):
+            st.session_state.sni_charges.append(100.0)
+            st.rerun()
+        if b2.button("➖ Remove Last", key="rem_charge") and len(st.session_state.sni_charges) > 1:
+            st.session_state.sni_charges.pop()
+            st.rerun()
+
+        # Header row
+        header_cols = st.columns([1.2] + [1] * 5)
+        header_cols[0].markdown("**Charge (kg)**")
+        for i, cls in enumerate(classes):
+            header_cols[i + 1].markdown(f"**{cls}**<br><small>{ppv_values[i]} mm/s</small>", unsafe_allow_html=True)
+
+        # Data rows
+        for row_i, charge_val in enumerate(st.session_state.sni_charges):
+            row_cols = st.columns([1.2] + [1] * 5)
+            new_val = row_cols[0].number_input(
+                "", min_value=0.1, value=float(charge_val), step=1.0,
+                key=f"sni_c_{row_i}", label_visibility="collapsed"
+            )
+            st.session_state.sni_charges[row_i] = new_val
+
+            for i, ppv_lim in enumerate(ppv_values):
+                d = calc_min_distance(new_val, ppv_lim)
+                row_cols[i + 1].markdown(
+                    f"<div style='background:#FFD700;padding:4px 8px;border-radius:4px;"
+                    f"text-align:center;font-weight:bold'>{d:.1f} m</div>",
+                    unsafe_allow_html=True
+                )
+
+        st.divider()
+
+        # ── Table 2: Safe Charge Prediction ───────────────────────────────────
+        st.markdown("### 💣 Safe Charge Prediction Table")
+        st.caption("Enter distance values (m) — table shows maximum allowable charge (kg) for each building class.")
+
+        if 'sni_distances' not in st.session_state:
+            st.session_state.sni_distances = [100.0]
+
+        b3, b4, _ = st.columns([1, 1, 4])
+        if b3.button("➕ Add Distance Row", key="add_dist"):
+            st.session_state.sni_distances.append(100.0)
+            st.rerun()
+        if b4.button("➖ Remove Last", key="rem_dist") and len(st.session_state.sni_distances) > 1:
+            st.session_state.sni_distances.pop()
+            st.rerun()
+
+        # Header row
+        header_cols2 = st.columns([1.2] + [1] * 5)
+        header_cols2[0].markdown("**Distance (m)**")
+        for i, cls in enumerate(classes):
+            header_cols2[i + 1].markdown(f"**{cls}**<br><small>{ppv_values[i]} mm/s</small>", unsafe_allow_html=True)
+
+        # Data rows
+        for row_i, dist_val in enumerate(st.session_state.sni_distances):
+            row_cols2 = st.columns([1.2] + [1] * 5)
+            new_dist = row_cols2[0].number_input(
+                "", min_value=0.1, value=float(dist_val), step=1.0,
+                key=f"sni_d_{row_i}", label_visibility="collapsed"
+            )
+            st.session_state.sni_distances[row_i] = new_dist
+
+            for i, ppv_lim in enumerate(ppv_values):
+                q = calc_max_charge(new_dist, ppv_lim)
+                row_cols2[i + 1].markdown(
+                    f"<div style='background:#90CAF9;padding:4px 8px;border-radius:4px;"
+                    f"text-align:center;font-weight:bold;color:black'>{q:.1f} kg</div>",
+                    unsafe_allow_html=True
+                )
+
+        # Class legend
+        st.divider()
+        st.markdown("**Building Class Reference (SNI 7571:2023)**")
+        leg_cols = st.columns(5)
+        for i, (cls, desc) in enumerate(CLASS_DESCRIPTIONS.items()):
+            leg_cols[i].caption(f"**{cls}**\n{desc}")

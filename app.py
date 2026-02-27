@@ -155,9 +155,9 @@ with st.sidebar:
     st.divider()
     page = st.radio("Navigate", [
         "📊 Data Overview",
-        "📐 Math Analysis",
+        "📉 Signal Analysis",
         "💥 Signature Hole Analysis",
-        "📈 PPV Analysis",
+        "📈 Attenuation & Safe Zone",
     ])
 
 
@@ -172,16 +172,20 @@ if not selected_bytes:
     blasting and vibration monitoring data.
     """)
     st.divider()
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.markdown("### 📊 Data Overview")
         st.markdown("View recording info, PPV, dominant frequency, and raw waveforms.")
     with col2:
-        st.markdown("### 📐 Math Analysis")
+        st.markdown("### 📉 Signal Analysis")
         st.markdown("Derive acceleration and displacement, analyze frequency spectrum.")
     with col3:
         st.markdown("### 💥 Signature Hole Analysis")
         st.markdown("Simulate full blast patterns to find optimal timing delays.")
+    with col4:
+        st.markdown("### 📈 Attenuation & Safe Zone")
+        st.markdown("Regression analysis and safe zone prediction based on SNI 7571.")
+        
     st.divider()
     st.subheader("⚙️ Supported Equipment")
     st.markdown("""
@@ -206,13 +210,13 @@ metadata, df, time_axis, sampling_rate = parse_file(selected_bytes)
 if page == "📊 Data Overview":
     overview.render(df, time_axis, metadata, sampling_rate, make_chart)
 
-elif page == "📐 Math Analysis":
+elif page == "📉 Signal Analysis":
     signal_analysis.render(df, time_axis, sampling_rate, make_chart)
 
 elif page == "💥 Signature Hole Analysis":
     sha.render(df, time_axis, sampling_rate)
 
-elif page == "📈 PPV Analysis":
+elif page == "📈 Attenuation & Safe Zone":
     ppv_analysis.render(
         st.session_state.uploaded_files_dict,
         st.session_state.ppv_registry,

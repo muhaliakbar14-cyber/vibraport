@@ -88,6 +88,25 @@ def run_simulation(
                 for ch in channels
             }
 
+            # PPV-weighted average frequency across the three channels.
+            # Weights each channel's dominant frequency by its PPV contribution,
+            # so the channel with the most vibration energy drives the result.
+            # More meaningful than min-frequency (dragged down by noisy channels)
+            # and avoids the envelope artifact of the vector sum signal approach.
+            ppv_v = result['ppv']['Vert']
+            ppv_l = result['ppv']['Long']
+            ppv_t = result['ppv']['Tran']
+            total_ppv = ppv_v + ppv_l + ppv_t
+            if total_ppv > 0:
+                freq_vs = round(
+                    (freqs['Vert'] * ppv_v +
+                     freqs['Long'] * ppv_l +
+                     freqs['Tran'] * ppv_t) / total_ppv,
+                    2
+                )
+            else:
+                freq_vs = 0.0
+
             results.append({
                 'hole_delay_ms': hd,
                 'row_delay_ms': rd,
@@ -98,6 +117,7 @@ def run_simulation(
                 'freq_vert': freqs['Vert'],
                 'freq_long': freqs['Long'],
                 'freq_tran': freqs['Tran'],
+                'freq_vs': freq_vs,
             })
 
             count += 1

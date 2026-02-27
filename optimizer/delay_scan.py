@@ -59,6 +59,7 @@ def results_to_dataframe(results: List[dict]) -> pd.DataFrame:
             'Freq Vert (Hz)': r['freq_vert'],
             'Freq Long (Hz)': r['freq_long'],
             'Freq Tran (Hz)': r['freq_tran'],
+            'Freq Vector Sum (Hz)': r['freq_vs'],
         })
     return pd.DataFrame(rows)
 
