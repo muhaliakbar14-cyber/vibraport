@@ -6,12 +6,43 @@ Handles sidebar, file management, and page routing.
 
 import streamlit as st
 from io import BytesIO
-from core.waveform import parse_file
-from pages import overview, signal_analysis, sha, ppv_analysis
+from core.waveform import parse_file, parse_sis_file
+from pages import overview, signal_analysis, sha, ppv_analysis, monitoring
 from config import VELOCITY_CHANNELS
 
 
 st.set_page_config(page_title="Vibraport", layout="wide")
+
+
+def _parse_uploaded_file(file_bytes: bytes, filename: str) -> tuple:
+    """
+    Route to the correct parser based on file extension.
+    Returns (metadata, df, time_axis, sampling_rate).
+    """
+    if filename.lower().endswith('.sis'):
+        return parse_sis_file(file_bytes)
+    else:
+        return parse_file(file_bytes)
+
+
+def _build_ppv_registry_entry(df, metadata: dict) -> dict:
+    """
+    Extract PPV values for the PPV Analysis page registry.
+    Handles both single-block and dual-block recordings.
+    """
+    def _maxabs(col):
+        return float(round(df[col].abs().max(), 4))
+
+    entry = {}
+    # Block 1 (always present)
+    if 'Vertical (mm/s)'     in df.columns: entry['vert'] = _maxabs('Vertical (mm/s)')
+    if 'Longitudinal (mm/s)' in df.columns: entry['long'] = _maxabs('Longitudinal (mm/s)')
+    if 'Transversal (mm/s)'  in df.columns: entry['tran'] = _maxabs('Transversal (mm/s)')
+    # Block 2 (dual-block .sis files only)
+    if 'Vertical B2 (mm/s)'     in df.columns: entry['vert_b2'] = _maxabs('Vertical B2 (mm/s)')
+    if 'Longitudinal B2 (mm/s)' in df.columns: entry['long_b2'] = _maxabs('Longitudinal B2 (mm/s)')
+    if 'Transversal B2 (mm/s)'  in df.columns: entry['tran_b2'] = _maxabs('Transversal B2 (mm/s)')
+    return entry
 st.markdown("""
     <style>
         [data-testid="stSidebarNav"] { display: none; }
@@ -127,8 +158,8 @@ with st.sidebar:
     with st.expander("📁 Add Files",
                      expanded=len(st.session_state.uploaded_files_dict) == 0):
         new_files = st.file_uploader(
-            "Upload Vibracord CSV files",
-            type="csv",
+            "Upload Vibracord files (.sis or .csv)",
+            type=["sis", "csv"],
             accept_multiple_files=True
         )
         if new_files:
@@ -136,12 +167,11 @@ with st.sidebar:
                 if f.name not in st.session_state.uploaded_files_dict:
                     file_bytes = f.read()
                     st.session_state.uploaded_files_dict[f.name] = file_bytes
-                    _, fdf, _, _ = parse_file(file_bytes)
-                    st.session_state.ppv_registry[f.name] = {
-                        'vert': round(fdf['Vertical (mm/s)'].abs().max(), 4),
-                        'long': round(fdf['Longitudinal (mm/s)'].abs().max(), 4),
-                        'tran': round(fdf['Transversal (mm/s)'].abs().max(), 4),
-                    }
+                    try:
+                        _, fdf, _, _ = _parse_uploaded_file(file_bytes, f.name)
+                        st.session_state.ppv_registry[f.name] = _build_ppv_registry_entry(fdf, {})
+                    except Exception as e:
+                        st.warning(f"Could not parse {f.name}: {e}")
 
     if st.session_state.uploaded_files_dict:
         selected_name = st.selectbox(
@@ -153,31 +183,41 @@ with st.sidebar:
         selected_bytes = None
 
     st.divider()
-    page = st.radio("Navigate", [
-        "📊 Data Overview",
-        "📉 Signal Analysis",
-        "💥 Signature Hole Analysis",
-        "📈 Attenuation & Safe Zone",
-    ])
+    # Detect record type from byte 0x09 — no full parse needed
+    is_bargraph = False
+    if selected_bytes and selected_name.endswith('.sis') and len(selected_bytes) > 0x0A:
+        is_bargraph = (selected_bytes[0x09] != 1)
+
+    if is_bargraph:
+        page = st.radio("Navigate", [
+            "📊 Bargraph Monitoring",
+        ])
+    else:
+        page = st.radio("Navigate", [
+            "📊 Data Overview",
+            "📡 Signal Analysis",
+            "💥 Signature Hole Analysis",
+            "📈 Attenuation & Safe Zone",
+        ])
 
 
 # ── Welcome screen ─────────────────────────────────────────────────────────────
 if not selected_bytes:
     st.title("Welcome to Vibraport")
-    st.caption("Vibration Data Manager — powered by Vibracord CSV files")
+    st.caption("Vibration Data Manager — powered by Vibracord .sis files")
     st.divider()
     st.markdown("""
-    **Vibraport** is a vibration data analysis tool designed for CSV files exported
+    **Vibraport** is a vibration data analysis tool designed for **.sis files**
     from **Vibracord** seismograph equipment. Built for engineers working with
     blasting and vibration monitoring data.
     """)
     st.divider()
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
         st.markdown("### 📊 Data Overview")
         st.markdown("View recording info, PPV, dominant frequency, and raw waveforms.")
     with col2:
-        st.markdown("### 📉 Signal Analysis")
+        st.markdown("### 📡 Signal Analysis")
         st.markdown("Derive acceleration and displacement, analyze frequency spectrum.")
     with col3:
         st.markdown("### 💥 Signature Hole Analysis")
@@ -185,7 +225,9 @@ if not selected_bytes:
     with col4:
         st.markdown("### 📈 Attenuation & Safe Zone")
         st.markdown("Regression analysis and safe zone prediction based on SNI 7571.")
-        
+    with col5:
+        st.markdown("### 📊 Bargraph Monitoring")
+        st.markdown("A page for bargraph mode monitoring with speacilized overview.")
     st.divider()
     st.subheader("⚙️ Supported Equipment")
     st.markdown("""
@@ -197,20 +239,21 @@ if not selected_bytes:
     | (number) | Vibracord DX |
     """)
     st.divider()
-    st.info("👈 Upload a Vibracord CSV file from the sidebar to get started.")
+    st.info("👈 Upload a Vibracord .sis file from the sidebar to get started.")
     st.caption("Vibraport is an independent tool and is not affiliated with Vibracord or its manufacturers.")
     st.stop()
 
 
 # ── Parse active file ──────────────────────────────────────────────────────────
-metadata, df, time_axis, sampling_rate = parse_file(selected_bytes)
+metadata, df, time_axis, sampling_rate = _parse_uploaded_file(selected_bytes, selected_name)
+metadata['_filename'] = selected_name
 
 
 # ── Page routing ───────────────────────────────────────────────────────────────
 if page == "📊 Data Overview":
-    overview.render(df, time_axis, metadata, sampling_rate, make_chart)
+    overview.render(df, time_axis, metadata, sampling_rate)
 
-elif page == "📉 Signal Analysis":
+elif page == "📡 Signal Analysis":
     signal_analysis.render(df, time_axis, sampling_rate, make_chart)
 
 elif page == "💥 Signature Hole Analysis":
@@ -221,3 +264,6 @@ elif page == "📈 Attenuation & Safe Zone":
         st.session_state.uploaded_files_dict,
         st.session_state.ppv_registry,
     )
+
+elif page == "📊 Bargraph Monitoring":
+    monitoring.render(df, time_axis, metadata, sampling_rate)

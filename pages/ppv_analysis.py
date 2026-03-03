@@ -23,11 +23,11 @@ def render(uploaded_files_dict, ppv_registry):
 
     # ── Data input table ───────────────────────────────────────────────────────
     st.subheader("Blast Event Data")
-    _info_col, _save_col, _load_col = st.columns([3, 1, 1])
- 
+
     EMPTY_ROW = {
         'No.': 1,
         'Source': '',
+        'Block': 1,
         'Charge (kg)': 0.0,
         'Distance (m)': 0.0,
         'Vertical (mm/s)': 0.0,
@@ -49,15 +49,29 @@ def render(uploaded_files_dict, ppv_registry):
     for fname in uploaded_files_dict.keys():
         if fname not in existing_sources:
             registry = ppv_registry.get(fname, {'vert': 0.0, 'long': 0.0, 'tran': 0.0})
+            # Block 1
             new_rows.append({
                 'No.': len(st.session_state.ppv_table) + len(new_rows) + 1,
                 'Source': fname,
+                'Block': 1,
                 'Charge (kg)': 0.0,
                 'Distance (m)': 0.0,
-                'Vertical (mm/s)': float(registry['vert']),
-                'Longitudinal (mm/s)': float(registry['long']),
-                'Transversal (mm/s)': float(registry['tran']),
+                'Vertical (mm/s)': float(registry.get('vert', 0.0)),
+                'Longitudinal (mm/s)': float(registry.get('long', 0.0)),
+                'Transversal (mm/s)': float(registry.get('tran', 0.0)),
             })
+            # Block 2 — only if dual-block file
+            if registry.get('vert_b2') is not None:
+                new_rows.append({
+                    'No.': len(st.session_state.ppv_table) + len(new_rows) + 1,
+                    'Source': fname,
+                    'Block': 2,
+                    'Charge (kg)': 0.0,
+                    'Distance (m)': 0.0,
+                    'Vertical (mm/s)': float(registry.get('vert_b2', 0.0)),
+                    'Longitudinal (mm/s)': float(registry.get('long_b2', 0.0)),
+                    'Transversal (mm/s)': float(registry.get('tran_b2', 0.0)),
+                })
     if new_rows:
         new_df = pd.DataFrame(new_rows)
         current = st.session_state.ppv_table
@@ -67,7 +81,7 @@ def render(uploaded_files_dict, ppv_registry):
             st.session_state.ppv_table = pd.concat([current, new_df], ignore_index=True)
 
     # ── Save / Load / Info — one clean row ────────────────────────────────────
-    _save_col, _load_col, _info_col = st.columns([1, 1, 4])
+    _save_col, _load_col, _info_col = st.columns([1, 2, 3])
 
     with _save_col:
         csv_bytes = st.session_state.ppv_table.to_csv(index=False).encode('utf-8')
@@ -93,6 +107,8 @@ def render(uploaded_files_dict, ppv_registry):
                             loaded_df[col] = range(1, len(loaded_df) + 1)
                         elif col == 'Source':
                             loaded_df[col] = ''
+                        elif col == 'Block':
+                            loaded_df[col] = 1
                         else:
                             loaded_df[col] = 0.0
                 st.session_state.ppv_table = loaded_df[list(EMPTY_ROW.keys())]
@@ -134,6 +150,7 @@ def render(uploaded_files_dict, ppv_registry):
         column_config={
             'No.':                  st.column_config.NumberColumn("No.", width="small", disabled=True),
             'Source':               st.column_config.TextColumn("Source", width="medium"),
+            'Block':                st.column_config.NumberColumn("Blk", width="small"),
             'Charge (kg)':          st.column_config.NumberColumn("Charge (kg)",   min_value=0.0, format="%.1f"),
             'Distance (m)':         st.column_config.NumberColumn("Distance (m)",  min_value=0.0, format="%.1f"),
             'Vertical (mm/s)':      st.column_config.NumberColumn("Vert (mm/s)",   min_value=0.0, format="%.2f"),
@@ -205,19 +222,29 @@ def render(uploaded_files_dict, ppv_registry):
 
         fig = go.Figure()
 
-        # Data points
+        # Data points — different marker symbols for Block 1 vs Block 2
+        blocks = data['Block'].values[valid] if 'Block' in data.columns else np.ones(valid.sum())
+        block_symbol = {1: 'circle-open', 2: 'square-open'}
+        block_label  = {1: '',            2: ' (Blk2)'}
+
         for ch_name, ppv_vals in channels.items():
             if ch_name == 'Vertical' and not use_vert: continue
             if ch_name == 'Longitudinal' and not use_long: continue
             if ch_name == 'Transversal' and not use_tran: continue
             color = channel_colors[ch_name]
             v = ppv_vals[valid]
-            fig.add_trace(go.Scatter(
-                x=x_pts[ch_name], y=v,
-                mode='markers', name=ch_name,
-                marker=dict(color=color, size=10, symbol='circle-open',
-                            line=dict(width=2)),
-            ))
+            sd_pts = x_pts[ch_name]
+            for blk in sorted(set(blocks.astype(int))):
+                mask_b = blocks.astype(int) == blk
+                if not mask_b.any(): continue
+                fig.add_trace(go.Scatter(
+                    x=sd_pts[mask_b], y=v[mask_b],
+                    mode='markers',
+                    name=f"{ch_name}{block_label[blk]}",
+                    marker=dict(color=color, size=10,
+                                symbol=block_symbol.get(blk, 'circle-open'),
+                                line=dict(width=2)),
+                ))
 
         # Regression and confidence lines
         fig.add_trace(go.Scatter(
@@ -309,11 +336,11 @@ def render(uploaded_files_dict, ppv_registry):
         }
 
         CLASS_DESCRIPTIONS = {
-            "Class 1": "Very sensitive / historic buildings",
-            "Class 2": "Sensitive buildings / light residential",
-            "Class 3": "General residential buildings",
-            "Class 4": "Commercial buildings / light industrial",
-            "Class 5": "Heavy industrial buildings",
+            "Class 1": "Bangunan sangat sensitif / historic",
+            "Class 2": "Bangunan sensitif / residensial ringan",
+            "Class 3": "Bangunan residensial umum",
+            "Class 4": "Bangunan komersial / industri ringan",
+            "Class 5": "Bangunan industri berat",
         }
 
         _freq_col, _freqinfo_col = st.columns([1, 2])

@@ -20,7 +20,7 @@ def render(df, time_axis, sampling_rate):
     st.markdown("## Step 1 — Truncate Waveform")
     st.caption("Isolate the signature hole pulse by selecting the active window.")
 
-    max_time = time_axis[-1]
+    max_time_ms = float(time_axis[-1] * 1000)
 
     input_mode = st.radio(
         "Input mode",
@@ -31,23 +31,37 @@ def render(df, time_axis, sampling_rate):
     if input_mode == "Manual":
         c1, c2 = st.columns(2)
         t_start = c1.number_input("Start time (ms)", min_value=0.0,
-                                   max_value=max_time, value=0.0)
+                                   max_value=max_time_ms, value=0.0)
         t_end = c2.number_input("End time (ms)", min_value=0.0,
-                                 max_value=max_time, value=max_time)
+                                 max_value=max_time_ms, value=max_time_ms)
     else:
         t_start, t_end = st.slider(
             "Select window (ms)",
-            min_value=0.0, max_value=max_time,
-            value=(0.0, max_time), step=1.0
+            min_value=0.0, max_value=max_time_ms,
+            value=(0.0, max_time_ms), step=1.0
         )
 
     start_idx = int(t_start * sampling_rate / 1000)
     end_idx = int(t_end * sampling_rate / 1000)
-    truncated_time = time_axis[start_idx:end_idx]
+    truncated_time = time_axis[start_idx:end_idx] * 1000  # ms for display
 
-    # Preview truncated waveform
-    vel_cols = [c for c in VELOCITY_CHANNELS.keys() if c in df.columns]
-    colors = list(VELOCITY_CHANNELS.values())
+    # Preview truncated waveform — show only the selected block
+    has_block2_preview = 'Vertical B2 (mm/s)' in df.columns
+    if has_block2_preview:
+        block_choice_preview = st.radio(
+            "Preview block",
+            ["Block 1", "Block 2"],
+            horizontal=True,
+            key='preview_block',
+        )
+        sfx_preview = ' B2' if block_choice_preview == "Block 2" else ''
+    else:
+        sfx_preview = ''
+
+    vel_cols = [f'Vertical{sfx_preview} (mm/s)', f'Longitudinal{sfx_preview} (mm/s)',
+                f'Transversal{sfx_preview} (mm/s)']
+    vel_cols = [c for c in vel_cols if c in df.columns]
+    colors = ['#00897B', '#E53935', '#5C6BC0']
 
     fig_trunc = make_subplots(
         rows=len(vel_cols), cols=1,
@@ -124,11 +138,23 @@ def render(df, time_axis, sampling_rate):
     # ── STEP 3 — Run Simulation ────────────────────────────────────────────────
     st.markdown("## Step 3 — Run the Simulation")
 
+    # ── Block selector (only shown for dual-block files) ──────────────────────
+    has_block2 = 'Vertical B2 (mm/s)' in df.columns
+    if has_block2:
+        block_choice = st.radio(
+            "Geophone block to use as signature hole",
+            ["Block 1", "Block 2"],
+            horizontal=True,
+        )
+        sfx = ' B2' if block_choice == "Block 2" else ''
+    else:
+        sfx = ''
+
     if st.button("▶ Run Simulation", type="primary"):
         waveform = {
-            'Vert': df['Vertical (mm/s)'].values[start_idx:end_idx],
-            'Long': df['Longitudinal (mm/s)'].values[start_idx:end_idx],
-            'Tran': df['Transversal (mm/s)'].values[start_idx:end_idx],
+            'Vert': df[f'Vertical{sfx} (mm/s)'].values[start_idx:end_idx],
+            'Long': df[f'Longitudinal{sfx} (mm/s)'].values[start_idx:end_idx],
+            'Tran': df[f'Transversal{sfx} (mm/s)'].values[start_idx:end_idx],
         }
 
         config = SimulationConfig(
