@@ -115,7 +115,8 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
 
     # ── Build metadata dict matching Vibraport conventions ────────────────────
     metadata = {
-        'Datetime':        r['datetime'],
+        'Date':            r['date'], 
+        'Time':            r['time'],
         'Calibration date': r['cal_date'],
         'Record type':     r['record_type'],
         'Sampling rate':   f"{r['sampling_rate']} sps",

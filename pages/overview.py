@@ -90,12 +90,13 @@ def _render_sis_recording_info(metadata):
         st.metric("Equipment", model)
         st.metric("Serial Number", serial or "N/A")
     with c2:
-        st.metric("Date & Time", metadata.get('Datetime', 'N/A'))
+        st.metric("Date", metadata.get('Date', 'N/A'))
         st.metric("Record Type", metadata.get('Record type', 'N/A'))
     with c3:
-        st.metric("Sampling Rate", metadata.get('Sampling rate', 'N/A'))
+        st.metric("Time", metadata.get('Time', 'N/A'))
         st.metric("Record Length", metadata.get('Record length', 'N/A'))
     with c4:
+        st.metric("Sampling Rate", metadata.get('Sampling rate', 'N/A'))
         st.metric("Pretrigger", metadata.get('Pretrigger', 'N/A'))
 
 

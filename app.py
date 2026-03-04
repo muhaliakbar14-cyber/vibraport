@@ -185,8 +185,10 @@ with st.sidebar:
     st.divider()
     # Detect record type from byte 0x09 — no full parse needed
     is_bargraph = False
-    if selected_bytes and selected_name.endswith('.sis') and len(selected_bytes) > 0x0A:
-        is_bargraph = (selected_bytes[0x09] != 1)
+    if selected_bytes and selected_name.endswith('.sis') and len(selected_bytes) > 0x2D:
+        equip = selected_bytes[0x2C]
+        rec   = selected_bytes[0x09]
+        is_bargraph = (rec != 0) if equip == 3 else (rec != 1)
 
     if is_bargraph:
         page = st.radio("Navigate", [

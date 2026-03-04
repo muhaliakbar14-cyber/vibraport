@@ -218,17 +218,22 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
     total_min  = round(n_bars * sampling_rate / 60, 1)
     duration   = f"{total_min} min ({n_bars} bars × {sampling_rate}s)"
 
+    # ── Primary fields — always visible ───────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Equipment",     model)
+        st.metric("Equipment", model)
         st.metric("Serial Number", serial or "N/A")
     with c2:
-        st.metric("Date & Time",  metadata.get('Datetime', 'N/A'))
-        st.metric("Record Type",  metadata.get('Record type', 'N/A'))
+        st.metric("Date", metadata.get('Date', 'N/A'))
+        st.metric("Record Type", metadata.get('Record type', 'N/A'))
     with c3:
-        st.metric("Duration",     duration)
-        st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
-
+        st.metric("Start", metadata.get('Time', 'N/A'))
+        st.metric("End", "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))
+    with c4:
+        st.metric("Duration", f"{total_min} min")
+        st.metric("Interval", f"{metadata.get('Sampling rate', 'N/A').split()[0]} seconds")
+        
+    # ── Secondary fields — collapsed by default ────────────────────────────────
     with st.expander("More Details", expanded=False):
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -241,8 +246,8 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
             else: 
                 st.metric("GPS Source", gps_source)
         with c2:
-            st.metric("Bargraph End Time",
-                      "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))
+            st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
+
         with c3:
             notes = [metadata.get(f'Note {i}', '') for i in range(1, 4)]
             for i, note in enumerate(notes, 1):
