@@ -43,6 +43,11 @@ def render(uploaded_files_dict, ppv_registry):
     if 'No.' not in st.session_state.ppv_table.columns:
         st.session_state.ppv_table.insert(0, 'No.', range(1, len(st.session_state.ppv_table) + 1))
 
+    # Track which files have ever been imported — independent of current table rows.
+    # This prevents deleted rows from being re-added on rerun.
+    if 'ppv_imported' not in st.session_state:
+        st.session_state.ppv_imported = set()
+
     # Merge any newly uploaded files into the table
     existing_sources = set(st.session_state.ppv_table['Source'].tolist())
     new_rows = []
@@ -79,11 +84,14 @@ def render(uploaded_files_dict, ppv_registry):
             st.session_state.ppv_table = new_df
         else:
             st.session_state.ppv_table = pd.concat([current, new_df], ignore_index=True)
+        # Mark all newly imported files so they are never re-added
+        for row in new_rows:
+            st.session_state.ppv_imported.add(row['Source'])
 
     # ── Save / Load / Info — one clean row ────────────────────────────────────
-    _save_col, _load_col, _info_col = st.columns([1, 2, 3])
+    _save_load_col, _info_col = st.columns([1, 2])
 
-    with _save_col:
+    with _save_load_col:
         csv_bytes = st.session_state.ppv_table.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="💾 Save Table",
@@ -93,7 +101,6 @@ def render(uploaded_files_dict, ppv_registry):
             use_container_width=True,
         )
 
-    with _load_col:
         loaded_file = st.file_uploader(
             "📂 Load Table", type="csv",
             key="ppv_load_csv", label_visibility="visible"
@@ -326,7 +333,7 @@ def render(uploaded_files_dict, ppv_registry):
 
         st.divider()
         st.subheader("📋 SNI 7571 Compliance Tables")
-        st.caption("Based on SNI 7571:2023 — Baku Tingkat Getaran Peledakan pada Kegiatan Tambang Terbuka terhadap Bangunan")
+        st.caption("Based on Blasting Vibration Limit Standard for Buildings in Surface Mining Activities (Indonesian National Standard)")
 
         # SNI 7571 PPV limits per class per frequency range
         SNI_LIMITS = {
@@ -336,11 +343,11 @@ def render(uploaded_files_dict, ppv_registry):
         }
 
         CLASS_DESCRIPTIONS = {
-            "Class 1": "Bangunan sangat sensitif / historic",
-            "Class 2": "Bangunan sensitif / residensial ringan",
-            "Class 3": "Bangunan residensial umum",
-            "Class 4": "Bangunan komersial / industri ringan",
-            "Class 5": "Bangunan industri berat",
+            "Class 1": "Highly sensitive / heritage buildings",
+            "Class 2": "Sensitive / simple residential buildings",
+            "Class 3": "Standard residential buildings",
+            "Class 4": "Reinforced residential / commercial buildings",
+            "Class 5": "Heavy industrial / critical infrastructure",
         }
 
         _freq_col, _freqinfo_col = st.columns([1, 2])

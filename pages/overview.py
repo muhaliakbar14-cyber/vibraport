@@ -12,7 +12,6 @@ from config import (
     LOW_AMPLITUDE_THRESHOLD,
 )
 
-
 def render(df, time_axis, metadata, sampling_rate, make_chart_fn=None):
     st.title("📊 Data Overview")
     st.divider()

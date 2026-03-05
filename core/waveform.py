@@ -14,7 +14,6 @@ from config import (
     DEFAULT_SAMPLING_RATE
 )
 
-
 def parse_file(file_bytes: bytes) -> tuple:
     """
     Parse a Vibracord CSV file from raw bytes.

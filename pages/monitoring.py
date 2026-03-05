@@ -50,9 +50,9 @@ def render(df, time_axis, metadata, sampling_rate):
         st.markdown("**Velocity (mm/s)**")
         c1, c2 = st.columns(2)
         vel_yellow = c1.number_input("⚠️ Yellow", min_value=0.0, value=1.0, step=0.1,
-                                      format="%.2f", key="vel_yellow")
+                                      format="%.1f", key="vel_yellow")
         vel_red    = c2.number_input("🚨 Red",    min_value=0.0, value=5.0, step=0.1,
-                                      format="%.2f", key="vel_red")
+                                      format="%.1f", key="vel_red")
     with col2 if has_pressure else st.container():
         if has_pressure:
             st.markdown("**Pressure (Pa)**")
@@ -166,20 +166,29 @@ def render(df, time_axis, metadata, sampling_rate):
 
     rows = []
     for ch in channels:
-        amp       = df[ch['amp_col']].values
-        unit      = ch['unit']
-        is_pres   = (unit == 'Pa')
-        y_lim     = pa_yellow if is_pres else vel_yellow
-        r_lim     = pa_red    if is_pres else vel_red
-        y_count   = int((amp >= y_lim).sum()) if y_lim > 0 else 0
-        r_count   = int((amp >= r_lim).sum()) if r_lim > 0 else 0
+        amp      = df[ch['amp_col']].values
+        unit     = ch['unit']
+        is_pres  = (unit == 'Pa')
+        y_lim    = pa_yellow if is_pres else vel_yellow
+        r_lim    = pa_red    if is_pres else vel_red
+        y_count  = int((amp >= y_lim).sum()) if y_lim > 0 else 0
+        r_count  = int((amp >= r_lim).sum()) if r_lim > 0 else 0
+
+        # Frequency at PPV — frequency recorded at the bar with highest amplitude
+        freq_str = '—'
+        if ch.get('freq_col') and ch['freq_col'] in df.columns:
+            peak_idx = int(np.argmax(amp))
+            freq_at_ppv = df[ch['freq_col']].values[peak_idx]
+            if freq_at_ppv > 0:
+                freq_str = f"{freq_at_ppv} Hz"
+
         rows.append({
             'Channel':       ch['label'],
-            'Max':           f"{amp.max():.3f} {unit}",
-            'Mean':          f"{amp.mean():.3f} {unit}",
-            'Std Dev':       f"{amp.std():.3f} {unit}",
-            '⚠️ Yellow':     y_count,
-            '🚨 Red':        r_count,
+            'Max (PPV)':           f"{amp.max():.2f} {unit}",
+            'Freq at PPV':   freq_str,
+            'Mean':          f"{amp.mean():.2f} {unit}",
+            '⚠️ Yellow':  y_count,
+            '🚨 Red':     r_count,
         })
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
@@ -218,22 +227,17 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
     total_min  = round(n_bars * sampling_rate / 60, 1)
     duration   = f"{total_min} min ({n_bars} bars × {sampling_rate}s)"
 
-    # ── Primary fields — always visible ───────────────────────────────────────
     c1, c2, c3, c4 = st.columns(4)
     with c1:
-        st.metric("Equipment", model)
+        st.metric("Equipment",     model)
         st.metric("Serial Number", serial or "N/A")
     with c2:
-        st.metric("Date", metadata.get('Date', 'N/A'))
-        st.metric("Record Type", metadata.get('Record type', 'N/A'))
+        st.metric("Date & Time",  metadata.get('Datetime', 'N/A'))
+        st.metric("Record Type",  metadata.get('Record type', 'N/A'))
     with c3:
-        st.metric("Start", metadata.get('Time', 'N/A'))
-        st.metric("End", "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))
-    with c4:
-        st.metric("Duration", f"{total_min} min")
-        st.metric("Interval", f"{metadata.get('Sampling rate', 'N/A').split()[0]} seconds")
-        
-    # ── Secondary fields — collapsed by default ────────────────────────────────
+        st.metric("Duration",     duration)
+        st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
+
     with st.expander("More Details", expanded=False):
         c1, c2, c3 = st.columns(3)
         with c1:
@@ -246,8 +250,8 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
             else: 
                 st.metric("GPS Source", gps_source)
         with c2:
-            st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
-
+            st.metric("Bargraph End Time",
+                      "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))
         with c3:
             notes = [metadata.get(f'Note {i}', '') for i in range(1, 4)]
             for i, note in enumerate(notes, 1):
