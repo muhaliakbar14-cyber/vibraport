@@ -77,11 +77,11 @@ def build_sni_chart(ppv_points):
         x, y = _build_step_xy(v1, v2, v3)
         style = CURVE_STYLES[cls]
         class_desc = {
-            1: 'Cl. 1 — Sangat sensitif',
-            2: 'Cl. 2 — Sensitif',
-            3: 'Cl. 3 — Biasa',
-            4: 'Cl. 4 — Kokoh',
-            5: 'Cl. 5 — Khusus',
+            1: 'Cl. 1 — Heritage buildings',
+            2: 'Cl. 2 — Sensitive buildings',
+            3: 'Cl. 3 — Residential buildings',
+            4: 'Cl. 4 — Commercial buildings',
+            5: 'Cl. 5 — Industrial buildings',
         }
         fig.add_trace(go.Scatter(
             x=x, y=y,

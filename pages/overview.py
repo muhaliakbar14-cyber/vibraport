@@ -274,11 +274,11 @@ def _render_sni_chart(df, time_axis, sampling_rate, metadata):
 
     # ── Class selector ─────────────────────────────────────────────────────────
     class_options = {
-        'Kelas 1 — Bangunan sangat sensitif (heritage, bersejarah)': 1,
-        'Kelas 2 — Bangunan sensitif (rumah tinggal lama)':          2,
-        'Kelas 3 — Bangunan biasa (rumah tinggal, ruko)':            3,
-        'Kelas 4 — Bangunan kokoh (beton bertulang, industri)':      4,
-        'Kelas 5 — Infrastruktur khusus (bendungan, tambang)':       5,
+        'Class 1: Highly sensitive / heritage buildings':         1,
+        'Class 2: Sensitive / simple residential buildings':      2,
+        'Class 3: Standard residential buildings':                3,
+        'Class 4: Reinforced residential / commercial buildings': 4,
+        'Class 5: Heavy industrial / critical infrastructure':    5,
     }
     selected_label = st.selectbox(
         "Infrastructure Class",
