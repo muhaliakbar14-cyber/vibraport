@@ -89,7 +89,7 @@ def render(uploaded_files_dict, ppv_registry):
             st.session_state.ppv_imported.add(row['Source'])
 
     # ── Save / Load / Info — one clean row ────────────────────────────────────
-    _save_load_col, _info_col = st.columns([1, 2, 3])
+    _save_load_col, _info_col = st.columns([1, 3])
 
     with _save_load_col:
         csv_bytes = st.session_state.ppv_table.to_csv(index=False).encode('utf-8')
@@ -100,7 +100,6 @@ def render(uploaded_files_dict, ppv_registry):
             mime="text/csv",
             use_container_width=True,
         )
-
         loaded_file = st.file_uploader(
             "📂 Load Table", type="csv",
             key="ppv_load_csv", label_visibility="visible"

@@ -256,7 +256,7 @@ if page == "📊 Data Overview":
     overview.render(df, time_axis, metadata, sampling_rate)
 
 elif page == "📡 Signal Analysis":
-    signal_analysis.render(df, time_axis, sampling_rate, make_chart)
+    signal_analysis.render(df, time_axis, sampling_rate, make_chart, metadata)
 
 elif page == "💥 Signature Hole Analysis":
     sha.render(df, time_axis, sampling_rate)

@@ -33,7 +33,7 @@ B2_COLORS = {
 }
 
 
-def render(df, time_axis, sampling_rate, make_chart_fn):
+def render(df, time_axis, sampling_rate, make_chart_fn, metadata=None):
     st.title("📡 Signal Analysis")
     st.divider()
 
@@ -51,7 +51,7 @@ def render(df, time_axis, sampling_rate, make_chart_fn):
 
     # ── Frequency Analysis ─────────────────────────────────────────────────────
     with st.expander("📡 Frequency Analysis", expanded=True):
-        _render_frequency_analysis(df, time_axis, sampling_rate)
+        _render_frequency_analysis(df, time_axis, sampling_rate, metadata)
 
     st.divider()
 
@@ -195,7 +195,7 @@ def _render_stacked_chart(df, time_axis, channels, key_prefix, show_sync_toggle=
 
 # ── Frequency Analysis ─────────────────────────────────────────────────────────
 
-def _render_frequency_analysis(df, time_axis, sampling_rate):
+def _render_frequency_analysis(df, time_axis, sampling_rate, metadata=None):
     vel_cols = [c for c in df.columns
                 if '(mm/s)' in c and 'A_' not in c and 'D_' not in c]
 
@@ -204,19 +204,44 @@ def _render_frequency_analysis(df, time_axis, sampling_rate):
         return
 
     st.subheader("Frequency Results")
+
+    # Use header values from device when available — more accurate than recomputing
+    channel_info = (metadata or {}).get('Channel info', [])
+    # Map velocity column names to channel_info index
+    vel_ch_map = {}
+    if channel_info:
+        vel_idx = [i for i, ch in enumerate(channel_info)
+                   if 'Velocity' in ch.get('magnitude', '') and not ch.get('is_virtual')]
+        for j, col in enumerate(vel_cols):
+            if j < len(vel_idx):
+                vel_ch_map[col] = channel_info[vel_idx[j]]
+
     rows = []
     for col in vel_cols:
-        sig  = tuple(df[col].values)
         ppv  = df[col].abs().max()
         warn = ' ⚠️' if ppv < LOW_AMPLITUDE_THRESHOLD else ''
-        rows.append({
-            'Channel':       col.replace(' (mm/s)', '') + warn,
-            'Zero Crossing': f"{calculate_frequency(sig, sampling_rate, 'Zero Crossing')} Hz",
-            'FFT Peak':      f"{calculate_frequency(sig, sampling_rate, 'FFT Peak')} Hz",
-            'Energy 25%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 25%')} Hz",
-            'Energy 50%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 50%')} Hz",
-            'Energy 75%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 75%')} Hz",
-        })
+        ch   = vel_ch_map.get(col)
+        if ch:
+            rows.append({
+                'Channel':       col.replace(' (mm/s)', '') + warn,
+                'Zero Crossing': f"{ch['freq_zero_crossing']} Hz",
+                'FFT Peak':      f"{ch['freq_fft_peak']} Hz",
+                'Energy 25%':    f"{ch['freq_energy_25']} Hz",
+                'Energy 50%':    f"{ch['freq_energy_50']} Hz",
+                'Energy 75%':    f"{ch['freq_energy_75']} Hz",
+            })
+        else:
+            # Fallback: compute from signal (CSV files or missing header)
+            sig = tuple(df[col].values)
+            rows.append({
+                'Channel':       col.replace(' (mm/s)', '') + warn,
+                'Zero Crossing': f"{calculate_frequency(sig, sampling_rate, 'Zero Crossing')} Hz",
+                'FFT Peak':      f"{calculate_frequency(sig, sampling_rate, 'FFT Peak')} Hz",
+                'Energy 25%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 25%')} Hz",
+                'Energy 50%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 50%')} Hz",
+                'Energy 75%':    f"{calculate_frequency(sig, sampling_rate, 'Energy 75%')} Hz",
+            })
+
     st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     st.subheader("FFT Spectrum (0–200 Hz)")

@@ -184,13 +184,19 @@ def _parse_tellus(d: bytes) -> dict:
     r = {}
 
     # ── 0x00–0x05 : Record Date & Time ────────────────────────────────────────
-    r['rec_day']    = d[0x00];  r['rec_month']  = d[0x01];  r['rec_year']   = d[0x02] + 2000
-    r['rec_hour']   = d[0x03];  r['rec_minute'] = d[0x04];  r['rec_second'] = d[0x05]
-    r['date']       = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
-    r['time']       = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
+    r['rec_day']    = d[0x00]
+    r['rec_month']  = d[0x01]
+    r['rec_year']   = d[0x02] + 2000
+    r['rec_hour']   = d[0x03]
+    r['rec_minute'] = d[0x04]
+    r['rec_second'] = d[0x05]
+    r['date'] = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
+    r['time'] = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
 
     # ── 0x06–0x08 : Calibration Date ──────────────────────────────────────────
-    r['cal_day']   = d[0x06];   r['cal_month'] = d[0x07];   r['cal_year']  = d[0x08] + 2000
+    r['cal_day']   = d[0x06]
+    r['cal_month'] = d[0x07]
+    r['cal_year']  = d[0x08] + 2000
     r['cal_date']  = f"{r['cal_day']:02d}/{r['cal_month']:02d}/{r['cal_year']}"
 
     # ── 0x09 : Record Type ────────────────────────────────────────────────────
@@ -359,14 +365,15 @@ def _parse_fx(d: bytes) -> dict:
     """Vibracord FX (type 5) and Gaia (type 6). Data at 0x200, int16 scaled, 7 channels."""
     r = {}
 
-    # ── 0x00–0x05 : Dates (same as Tellus) ────────────────────────────────────
-    r['rec_day']    = d[0x00];  r['rec_month']  = d[0x01];  r['rec_year']   = d[0x02] + 2000
+    # ── 0x00–0x08 : Dates (same as Tellus) ────────────────────────────────────
+    r['rec_day']    = d[0x00];  r['rec_month']  = d[0x01]
+    r['rec_year']   = d[0x02] + 2000
     r['rec_hour']   = d[0x03];  r['rec_minute'] = d[0x04];  r['rec_second'] = d[0x05]
-    r['date']       = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
-    r['time']       = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
-    
-    # ── 0x06–0x08 : Calibration Date ──────────────────────────────────────────
-    r['cal_day']   = d[0x06];   r['cal_month'] = d[0x07];   r['cal_year']  = d[0x08] + 2000
+    r['date'] = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
+    r['time'] = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
+
+    r['cal_day']   = d[0x06];  r['cal_month'] = d[0x07]
+    r['cal_year']  = d[0x08] + 2000
     r['cal_date']  = f"{r['cal_day']:02d}/{r['cal_month']:02d}/{r['cal_year']}"
 
     # ── 0x09 : Record Type ────────────────────────────────────────────────────
@@ -479,14 +486,15 @@ def _parse_fx(d: bytes) -> dict:
     rec_len = r['record_length_s']
 
     if r['is_waveform']:
+        # FX/Gaia waveform: interleaved int16 per sample
+        # Layout: [ch0, ch1, ch2, ..., chN, ch0, ch1, ...]
         n_samples = sps * rec_len
+        all_raw   = np.frombuffer(d[0x200 : 0x200 + n_samples * num_ch * 2], dtype='<i2').astype(np.float32)
         waveform  = {}
         for i in range(num_ch):
-            ch_start = 0x200 + i * n_samples * 2
-            raw      = np.frombuffer(d[ch_start : ch_start + n_samples * 2], dtype='<i2').astype(np.float32)
-            scale    = 10.0 ** (-r['decimal_points'][i])
-            ch       = r['channel_info'][i]
-            waveform[f"Ch{i+1}_{ch['axis']}_{ch['magnitude']}"] = raw * scale
+            scale = 10.0 ** (-r['decimal_points'][i])
+            ch    = r['channel_info'][i]
+            waveform[f"Ch{i+1}_{ch['axis']}_{ch['magnitude']}"] = all_raw[i::num_ch] * scale
         r['waveform']  = waveform
         r['time_axis'] = np.arange(n_samples) / sps
 
@@ -521,13 +529,14 @@ def _parse_dx(d: bytes) -> dict:
     r = {}
 
     # ── 0x00–0x08 : Dates ─────────────────────────────────────────────────────
-    r['rec_day']    = d[0x00];  r['rec_month']  = d[0x01];  r['rec_year']   = d[0x02] + 2000
+    r['rec_day']    = d[0x00];  r['rec_month']  = d[0x01]
+    r['rec_year']   = d[0x02] + 2000
     r['rec_hour']   = d[0x03];  r['rec_minute'] = d[0x04];  r['rec_second'] = d[0x05]
-    r['date']       = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
-    r['time']       = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
+    r['date'] = f"{r['rec_day']:02d}/{r['rec_month']:02d}/{r['rec_year']}"
+    r['time'] = f"{r['rec_hour']:02d}:{r['rec_minute']:02d}:{r['rec_second']:02d}"
     
-    # ── 0x06–0x08 : Calibration Date ──────────────────────────────────────────
-    r['cal_day']   = d[0x06];  r['cal_month'] = d[0x07];    r['cal_year']  = d[0x08] + 2000
+    r['cal_day']   = d[0x06];  r['cal_month'] = d[0x07]
+    r['cal_year']  = d[0x08] + 2000
     r['cal_date']  = f"{r['cal_day']:02d}/{r['cal_month']:02d}/{r['cal_year']}"
 
     # ── 0x09 : Record Type ────────────────────────────────────────────────────

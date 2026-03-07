@@ -283,7 +283,7 @@ def _render_sni_chart(df, time_axis, sampling_rate, metadata):
     selected_label = st.selectbox(
         "Infrastructure Class",
         options=list(class_options.keys()),
-        index=2,  # default Kelas 3
+        index=2,  # default Class 3
     )
     selected_class = class_options[selected_label]
 
@@ -327,9 +327,9 @@ def _render_sni_chart(df, time_axis, sampling_rate, metadata):
     if violations:
         names = ', '.join(f"Blk{v['block']} {v['channel']}" if v['block'] == 2
                           else v['channel'] for v in violations)
-        st.error(f"⚠️ Exceeds Kelas {selected_class} limit: **{names}**")
+        st.error(f"⚠️ Exceeds Class {selected_class} limit: **{names}**")
     else:
-        st.success(f"✅ All channels comply with Kelas {selected_class}")
+        st.success(f"✅ All channels comply with Class {selected_class}")
 
     # ── Chart ──────────────────────────────────────────────────────────────────
     fig = build_sni_chart(ppv_points)
