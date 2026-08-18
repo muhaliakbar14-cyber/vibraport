@@ -93,18 +93,17 @@ def _render_sis_recording_info(metadata):
         st.metric("Record Type", metadata.get('Record type', 'N/A'))
     with c3:
         st.metric("Time", metadata.get('Time', 'N/A'))
-        st.metric("Record Length", metadata.get('Record length', 'N/A'))
-    with c4:
-        st.metric("Sampling Rate", metadata.get('Sampling rate', 'N/A'))
         st.metric("Pretrigger", metadata.get('Pretrigger', 'N/A'))
+    with c4:
+        st.metric("Record Length", metadata.get('Record length', 'N/A'))
+        st.metric("Sampling Rate", metadata.get('Sampling rate', 'N/A'))
 
 
     # ── Secondary fields — collapsed by default ────────────────────────────────
     with st.expander("More Details", expanded=False):
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns([1, 2])
         with c1:
             st.metric("Calibration Date", metadata.get('Calibration date', 'N/A'))
-        with c2:
             st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
             gps_source = metadata.get('GPS source', 'Not set')
             lat = metadata.get('Latitude')
@@ -112,7 +111,7 @@ def _render_sis_recording_info(metadata):
             st.metric("GPS Source", gps_source)
             if gps_source != 'Not set' and lat is not None:
                 st.metric("Coordinates", f"{lat:.6f}, {lon:.6f}")
-        with c3:
+        with c2:
             notes = [metadata.get(f'Note {i}', '') for i in range(1, 4)]
             for i, note in enumerate(notes, 1):
                 st.metric(f"Note {i}", note if note else "—")

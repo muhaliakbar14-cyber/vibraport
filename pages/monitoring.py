@@ -232,16 +232,21 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
         st.metric("Equipment",     model)
         st.metric("Serial Number", serial or "N/A")
     with c2:
-        st.metric("Date & Time",  metadata.get('Datetime', 'N/A'))
+        st.metric("Date",  metadata.get('Date', 'N/A'))
         st.metric("Record Type",  metadata.get('Record type', 'N/A'))
     with c3:
-        st.metric("Duration",     duration)
-        st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
+        st.metric("Start Time", metadata.get('Time', (0,0,0)))
+        st.metric("End Time",
+                "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))    
+    with c4:
+        st.metric("Record Length", f"{total_min} mins")
+        st.metric("Interval Length", f"{sampling_rate} s")
 
     with st.expander("More Details", expanded=False):
-        c1, c2, c3 = st.columns(3)
+        c1, c2 = st.columns([1, 2])
         with c1:
             st.metric("Calibration Date", metadata.get('Calibration date', 'N/A'))
+            st.metric("Clock Source", metadata.get('Clock source', 'N/A'))
             gps_source = metadata.get('GPS source', 'Not set')
             lat = metadata.get('Latitude')
             lon = metadata.get('Longitude')
@@ -250,9 +255,6 @@ def _render_recording_info(metadata, time_axis, sampling_rate):
             else: 
                 st.metric("GPS Source", gps_source)
         with c2:
-            st.metric("Bargraph End Time",
-                      "{:02d}:{:02d}:{:02d}".format(*metadata.get('Bargraph end time', (0,0,0))))
-        with c3:
             notes = [metadata.get(f'Note {i}', '') for i in range(1, 4)]
             for i, note in enumerate(notes, 1):
                 st.metric(f"Note {i}", note if note else "—")

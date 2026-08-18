@@ -89,6 +89,7 @@ def build_sni_chart(ppv_points):
             name=class_desc[cls],
             line=dict(color=style['color'], dash=style['dash'], width=2),
             hovertemplate=f'<b>Class {cls}</b><br>Freq: %{{x}} Hz<br>Limit: %{{y}} mm/s<extra></extra>',
+            showlegend=False,
         ))
 
         # Class label at right end
@@ -121,6 +122,7 @@ def build_sni_chart(ppv_points):
         compliance_text = f'Compliant Cl.{compliant_class}' if compliant_class else '⚠️ Exceeds Cl.5'
         label = f"Blk{block} {ch}" if block == 2 else ch
 
+        show_legend = ch in ('Vertical', 'Longitudinal', 'Transversal')
         fig.add_trace(go.Scatter(
             x=[freq], y=[ppv],
             mode='markers',
@@ -131,6 +133,7 @@ def build_sni_chart(ppv_points):
                 size=marker['size'],
                 line=dict(color=marker['color'], width=marker['line_width']),
             ),
+            showlegend=show_legend,
             hovertemplate=(
                 f'<b>{label}</b><br>'
                 f'PPV: {ppv:.3f} mm/s<br>'
@@ -166,7 +169,7 @@ def build_sni_chart(ppv_points):
             orientation='h',
             y=-0.18,
             x=0,
-            font=dict(size=11),
+            font=dict(size=10),
         ),
         margin=dict(t=30, b=80, l=70, r=80),
         plot_bgcolor='white',
