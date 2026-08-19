@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from io import StringIO
 
-from core.waveform import parse_sis_file
-from pages import report
+from core.waveform import parse_sis_file, parse_file as _core_parse_file
+from pages import report, ppv_analysis, monitoring, signal_analysis
 
 st.set_page_config(page_title="Vibraport", layout="wide")
 
@@ -18,10 +18,25 @@ if 'ppv_registry' not in st.session_state:
     st.session_state.ppv_registry = {}
 
 
+@st.cache_data(show_spinner=False)
 def _parse_uploaded_file(file_bytes: bytes, filename: str) -> tuple:
+    """
+    Parse a .sis or .csv file and return (metadata, df, time_axis, sampling_rate)
+    with time_axis ALWAYS in milliseconds, regardless of source format.
+
+    Cached on (file_bytes, filename) so re-parsing only happens when the
+    active file actually changes, not on every widget interaction/rerun.
+
+    NOTE: .sis parsing (core.waveform.parse_sis_file) returns time_axis in
+    SECONDS by convention — pages/report.py compensates for this itself at
+    each call site (time_axis * 1000). This wrapper normalizes it once, here,
+    so every other page in app.py can assume milliseconds unconditionally.
+    """
     if filename.lower().endswith('.sis'):
-        return parse_sis_file(file_bytes)
-    return parse_file(file_bytes)
+        metadata, df, time_axis, sampling_rate = parse_sis_file(file_bytes)
+        time_axis = time_axis * 1000  # seconds -> milliseconds
+        return metadata, df, time_axis, sampling_rate
+    return _core_parse_file(file_bytes)
 
 
 def _build_ppv_registry_entry(df) -> dict:
@@ -96,65 +111,16 @@ with st.sidebar:
 
     page = st.radio(
         "Navigate",
-        ["📊 Data Overview", "📐 Math Analysis", "💥 Signature Hole Analysis", "🖨️ Print Report"],
+        [
+            "📊 Data Overview",
+            "📐 Math Analysis",
+            "📡 Signal Analysis",
+            "💥 Signature Hole Analysis",
+            "📈 Attenuation & Safe Zone",
+            "📉 Bargraph Monitoring",
+            "🖨️ Print Report",
+        ],
     )
-
-# ── Parse file ─────────────────────────────────────────────────────────────────
-def parse_file(uploaded_file):
-    lines = uploaded_file.read().decode("utf-8").splitlines()
-    metadata = {}
-    data_start = 0
-    for i, line in enumerate(lines):
-        if line.startswith('"Time","Channel'):
-            data_start = i
-            break
-        parts = line.replace('\r', '').split('","')
-        if len(parts) >= 2:
-            key = parts[0].strip('"')
-            value = parts[1].strip('"')
-            if key:
-                metadata[key] = value
-
-    data_text = "\n".join(lines[data_start:])
-    df = pd.read_csv(StringIO(data_text), on_bad_lines='skip')
-    df.columns = [c.strip() for c in df.columns]
-    df = df.dropna(axis=1, how='all')
-
-    df = df.rename(columns={
-        'Channel 1 (mm/s)': 'Vertical (mm/s)',
-        'Channel 2 (mm/s)': 'Longitudinal (mm/s)',
-        'Channel 3 (mm/s)': 'Transversal (mm/s)',
-    })
-
-    # Parse sampling rate dynamically
-    sampling_rate_str = metadata.get("Sampling rate", "2048 sps")
-    sampling_rate = int(sampling_rate_str.split()[0])
-
-    # Time axis in ms
-    time_axis = [round(i * (1/sampling_rate) * 1000, 1) for i in range(len(df))]
-
-    # Acceleration (derivative)
-    velocity_cols = [c for c in df.columns if 'mm/s' in c and 'Vector' not in c]
-    accel_rename = {
-        'Vertical (mm/s)': 'A_Vert (mm/s²)',
-        'Longitudinal (mm/s)': 'A_Long (mm/s²)',
-        'Transversal (mm/s)': 'A_Tran (mm/s²)',
-    }
-    for col in velocity_cols:
-        accel_col = accel_rename.get(col, col.replace('mm/s', 'mm/s²'))
-        df[accel_col] = np.gradient(df[col].values, 1/sampling_rate)
-
-    # Displacement (integration)
-    disp_rename = {
-        'Vertical (mm/s)': 'D_Vert (mm)',
-        'Longitudinal (mm/s)': 'D_Long (mm)',
-        'Transversal (mm/s)': 'D_Tran (mm)',
-    }
-    for col in velocity_cols:
-        disp_col = disp_rename.get(col, col.replace('mm/s', 'mm'))
-        df[disp_col] = np.cumsum(df[col].values) * (1/sampling_rate)
-
-    return metadata, df, time_axis, sampling_rate
 
 def calculate_frequency(sig, sampling_rate, method):
     n = len(sig)
@@ -176,8 +142,15 @@ def calculate_frequency(sig, sampling_rate, method):
         elif method == "Energy 75%":
             return round(freqs[np.searchsorted(cumulative_energy, 0.75 * total_energy)], 2)
 
+@st.fragment
 def make_chart(df, time_axis, columns, title=""):
-    """Reusable chart builder for any set of columns."""
+    """
+    Reusable chart builder for any set of columns.
+
+    Wrapped as a fragment: toggling a channel's Show/Hide checkbox only
+    reruns this chart, not the whole page (which would otherwise re-run
+    file parsing, all metric calculations, and every other chart above it).
+    """
     channel_cols = [c for c in columns if c in df.columns]
 
     st.write("Show/Hide:")
@@ -278,16 +251,28 @@ if not uploaded_file:
 
     st.divider()
 
+    st.subheader("📚 Features")
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("### 📊 Data Overview")
         st.markdown("View recording info, peak particle velocity, dominant frequency, and raw waveforms.")
-    with col2:
         st.markdown("### 📐 Math Analysis")
         st.markdown("Derive acceleration and displacement, analyze frequency spectrum, and inspect peak values.")
-    with col3:
+    with col2:
+        st.markdown("### 📡 Signal Analysis")
+        st.markdown("Stacked seismogram view with dual-geophone (Block 2) support, device-reported frequency values, and acceleration-at-peak-displacement for slope stability analysis.")
         st.markdown("### 💥 Signature Hole Analysis")
         st.markdown("Simulate full blast patterns using a single signature hole recording to find optimal timing delays.")
+    with col3:
+        st.markdown("### 📈 Attenuation & Safe Zone")
+        st.markdown("Regress PPV against scaled distance across multiple blast events, then predict safe distance, max charge, or expected PPV — including SNI 7571 building-class compliance tables.")
+        st.markdown("### 📉 Bargraph Monitoring")
+        st.markdown("View long-term bargraph recordings (files ending in **M** before `.sis`) with configurable alert thresholds, exceedance markers, and frequency distribution.")
+        st.markdown("### 🖨️ Print Report")
+        st.markdown("Generate a formatted PDF-ready report from any uploaded recording.")
+
+    st.divider()
+    st.caption("📐 Math Analysis and 📡 Signal Analysis currently overlap in purpose (frequency + acceleration + displacement). Signal Analysis is the newer version — it adds dual-geophone support and uses device-reported frequency values. Kept both for now; consolidating is a planned cleanup.")
 
     st.divider()
 
@@ -306,8 +291,30 @@ if not uploaded_file:
     st.caption("Vibraport is an independent tool and is not affiliated with Vibracord or its manufacturers.")
     st.stop()
 
+# ── Attenuation & Safe Zone doesn't need the active file's parsed waveform —
+# it works from the registry of ALL uploaded files' peak values, so it's
+# routed before parsing/gating on the currently active file.
+if page == "📈 Attenuation & Safe Zone":
+    ppv_analysis.render(st.session_state.uploaded_files_dict, st.session_state.ppv_registry)
+    st.stop()
+
 metadata, df, time_axis, sampling_rate = _parse_uploaded_file(selected_bytes, selected_name)
 metadata['_filename'] = selected_name
+
+# ── Bargraph ("M") files don't have velocity/accel/displacement waveform
+# columns — only amplitude/frequency summaries per interval. Route them to
+# the Bargraph Monitoring page regardless of which page is selected, rather
+# than letting the waveform-only pages below crash on a missing column.
+if not metadata.get('is_waveform', True) and page != "📉 Bargraph Monitoring":
+    st.info(f"**{selected_name}** is a Bargraph recording, not a Waveform recording. Switch to **📉 Bargraph Monitoring** in the sidebar to view it.")
+    st.stop()
+
+if page == "📉 Bargraph Monitoring":
+    # monitoring.py expects time_axis in raw seconds (bar_index * interval_seconds);
+    # _parse_uploaded_file normalizes everything to milliseconds for the waveform
+    # pages above, so convert back here.
+    monitoring.render(df, time_axis / 1000, metadata, sampling_rate)
+    st.stop()
 
 velocity_cols = ['Vertical (mm/s)', 'Longitudinal (mm/s)', 'Transversal (mm/s)']
 accel_cols    = ['A_Vert (mm/s²)', 'A_Long (mm/s²)', 'A_Tran (mm/s²)']
@@ -499,6 +506,14 @@ elif page == "📐 Math Analysis":
                     st.caption(f"Occurs at t = {peak_time:.1f} ms")
 
 # ══════════════════════════════════════════════════════════════════════════════
+# PAGE 2.5 — SIGNAL ANALYSIS (stacked seismogram + Block 2 support)
+# ══════════════════════════════════════════════════════════════════════════════
+elif page == "📡 Signal Analysis":
+    # signal_analysis.py expects time_axis in raw seconds; _parse_uploaded_file
+    # normalizes to milliseconds for the other pages, so convert back here.
+    signal_analysis.render(df, time_axis / 1000, sampling_rate, metadata=metadata)
+
+# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 3 — SIGNATURE HOLE ANALYSIS
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "💥 Signature Hole Analysis":
@@ -564,37 +579,42 @@ elif page == "💥 Signature Hole Analysis":
 
     st.divider()
 
-    # ── STEP 2 ────────────────────────────────────────────────────────────────
+    # ── STEP 2 + 3 ────────────────────────────────────────────────────────────
+    # Wrapped in st.form: none of these 10 inputs trigger a rerun (or re-render
+    # Step 1's truncation chart above) until "Run Simulation" is pressed. Only
+    # the submit button reruns the script — this is the single biggest rerun
+    # cost on this page since Step 1's chart was previously rebuilding on every
+    # keystroke in any of these fields.
     st.markdown("## Step 2 — Blast Design Parameters")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown("**Deck Configuration**")
-        num_decks = st.number_input("Number of Decks per Hole", min_value=1, max_value=10, value=1)
-        deck_delay = st.number_input("Inter-Deck Delay (ms)", min_value=0, max_value=500, value=0)
+    with st.form("sha_blast_params_form"):
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown("**Deck Configuration**")
+            num_decks = st.number_input("Number of Decks per Hole", min_value=1, max_value=10, value=1)
+            deck_delay = st.number_input("Inter-Deck Delay (ms)", min_value=0, max_value=500, value=0)
 
-    with col2:
-        st.markdown("**Row Configuration**")
-        num_rows = st.number_input("Number of Rows", min_value=1, max_value=20, value=1)
-        row_delay_start = st.number_input("Inter-Row Delay Start (ms)", min_value=0, max_value=500, value=20)
-        row_delay_end = st.number_input("Inter-Row Delay End (ms)", min_value=0, max_value=500, value=150)
-        row_delay_increment = st.number_input("Inter-Row Delay Increment (ms)", min_value=1, max_value=100, value=1)
+        with col2:
+            st.markdown("**Row Configuration**")
+            num_rows = st.number_input("Number of Rows", min_value=1, max_value=20, value=1)
+            row_delay_start = st.number_input("Inter-Row Delay Start (ms)", min_value=0, max_value=500, value=20)
+            row_delay_end = st.number_input("Inter-Row Delay End (ms)", min_value=0, max_value=500, value=150)
+            row_delay_increment = st.number_input("Inter-Row Delay Increment (ms)", min_value=1, max_value=100, value=1)
 
-    with col3:
-        st.markdown("**Hole Configuration**")
-        num_holes = st.number_input("Number of Holes per Row", min_value=1, max_value=50, value=5)
-        hole_delay_start = st.number_input("Inter-Hole Delay Start (ms)", min_value=0, max_value=500, value=20)
-        hole_delay_end = st.number_input("Inter-Hole Delay End (ms)", min_value=0, max_value=500, value=150)
-        hole_delay_increment = st.number_input("Inter-Hole Delay Increment (ms)", min_value=1, max_value=100, value=1)
-    hole_combos = len(range(hole_delay_start, hole_delay_end + 1, hole_delay_increment))
-    row_combos = len(range(row_delay_start, row_delay_end + 1, row_delay_increment))
-    total_combos = hole_combos * row_combos
-    st.info(f"This will simulate **{hole_combos}** inter-hole delays × **{row_combos}** inter-row delays = **{total_combos:,}** total combinations.")
+        with col3:
+            st.markdown("**Hole Configuration**")
+            num_holes = st.number_input("Number of Holes per Row", min_value=1, max_value=50, value=5)
+            hole_delay_start = st.number_input("Inter-Hole Delay Start (ms)", min_value=0, max_value=500, value=20)
+            hole_delay_end = st.number_input("Inter-Hole Delay End (ms)", min_value=0, max_value=500, value=150)
+            hole_delay_increment = st.number_input("Inter-Hole Delay Increment (ms)", min_value=1, max_value=100, value=1)
 
-    st.divider()
+        hole_combos = len(range(hole_delay_start, hole_delay_end + 1, hole_delay_increment))
+        row_combos = len(range(row_delay_start, row_delay_end + 1, row_delay_increment))
+        total_combos = hole_combos * row_combos
+        st.caption(f"Will simulate **{hole_combos}** inter-hole delays × **{row_combos}** inter-row delays = **{total_combos:,}** total combinations. (Updates after you press Run — form inputs don't trigger live reruns.)")
 
-    # ── STEP 3 ────────────────────────────────────────────────────────────────
-    st.markdown("## Step 3 — Run the Simulation")
-    simulate_btn = st.button("▶ Run Simulation", type="primary")
+        st.divider()
+        st.markdown("## Step 3 — Run the Simulation")
+        simulate_btn = st.form_submit_button("▶ Run Simulation", type="primary")
 
     if simulate_btn:
         samples_per_ms = sampling_rate / 1000

@@ -79,3 +79,25 @@
 - Preserved `.sis` parsing and the report page as required behavior.
 - Set the next UX goal to reduce full-page reruns and blinking with `st.form` and `st.fragment`.
 - Rewrote the memory-bank so another AI can continue from the updated direction.
+
+## 2026-08-18 — Claude session: repo verification + SaaS direction
+- Cloned repo from GitHub, independently verified (not just read docs): py_compile clean, 30/30 tests pass, .sis parser tested against 5 real hardware samples (Tellus/Gaia/DX/dual-block), .csv parser tested against 4 real samples, app boots and serves HTTP 200.
+- Found and flagged stale `.streamlit/config.toml` key (`ui.hideSidebarNav`) — non-fatal, cleanup TODO.
+- Discussed SaaS direction: sign-in + save/resume projects, staying free/simple. Recommended Streamlit (no rewrite) + Supabase (Auth/Postgres/Storage) + Streamlit Community Cloud, explicitly avoiding repeat of the 2026-05-18 FastAPI+React+Supabase complexity by keeping Streamlit as the whole app.
+- Found reference GitHub templates: antoineross/streamlit-saas-starter (full SaaS w/ Stripe), AstraBert/streamlit_supabase_auth_ui (lighter auth-only), mkhorasani/Streamlit-Authenticator (no external service, YAML-based fallback).
+- Decision: recommended writing a thin custom `supabase-py` auth wrapper rather than depending on a third-party Streamlit auth UI package.
+- Noted hard constraint: Streamlit Community Cloud free tier has an ephemeral filesystem — any "save project" feature requires an external DB/storage regardless of which auth approach is chosen.
+
+## 2026-08-19 — Claude session: rerun/blink fixes, real bugs found+fixed, 3 pages restored
+- Implemented the agreed rerun/blink fixes: st.cache_data on file parsing, st.fragment on make_chart(), st.form on SHA Step 2 (10 blast-parameter inputs).
+- Found and fixed while touching the same code (not originally requested, but blocking/adjacent): CSV file selection crash (AttributeError on bytes.read()), a 1000x time-unit mismatch between .sis (seconds) and .csv (ms) that broke SHA truncation and chart time axes for .sis files, .sis metadata key mismatch causing "Calibrated"/"Date & Time" to show N/A, and a stale .streamlit/config.toml key that was silently failing to hide Streamlit's auto-generated pages nav.
+- User reported displacement "looks weird" — tested actual math against 5 real files, found no drift/trend bug (values numerically sane, physically correct magnitude). Could not reproduce; asked user for a screenshot/more detail. Proactively improved the integration to use scipy.signal.detrend(linear) instead of mean-subtraction-only, and fixed a related inconsistency where Block 2 (dual-geophone) channels had their own duplicated, less-robust copy of the same logic.
+- Restored ppv_analysis.py (attenuation regression + safe zone calculator + SNI 7571 tables) and monitoring.py (bargraph "M" file viewer) into app.py's navigation — both were present in the repo but never imported since the "Restore Streamlit baseline" revert. Also restored signal_analysis.py (stacked seismogram with Block 2 support) on follow-up request.
+- Integration required converting time_axis units back from the app's ms-normalized form to raw seconds for monitoring.py and signal_analysis.py, which both expect seconds. Added a guard so bargraph files don't crash waveform-only pages.
+- Every fix verified by actually executing the code against real sample files (not just reading/compiling) — CSV/`.sis` parsing, bargraph channel detection, PPV regression pipeline, and signal_analysis's metrics functions were all run end-to-end with real data from testfile-sis/ and csv_test/. Full pytest suite (30/30) and a headless streamlit boot/HTTP-200 check both re-verified after every round of changes.
+- Known open item: Math Analysis (inline in app.py) and Signal Analysis (pages/signal_analysis.py) now both exist with overlapping purpose — not consolidated, flagged in the welcome screen and next-steps.md.
+
+## 2026-08-19 — Self-correction: inconsistent Signal Analysis wiring
+- Found a real process error: in the prior session pass, the Signal Analysis nav entry, welcome-screen text, and routing `elif` block were already added to `app.py` — but the corresponding `import` was never added, and a leftover duplicate import (`signal_analysis, signal_analysis`) was present. This means the previous "done" state would have crashed with a NameError if a user had selected that page.
+- Compounding this: the previous summary to the user explicitly said Signal Analysis was "left alone, not wired in" — which was inaccurate given the code already partially referenced it. Corrected in this pass: fixed the duplicate import, removed the unused `make_chart_fn` parameter from `signal_analysis.render()` (confirmed dead via grep, never referenced in the function body) and updated the call site to match.
+- Lesson for future sessions: verify claims about "what was/wasn't changed" against the actual diff before reporting status to the user, not just from memory of intent.

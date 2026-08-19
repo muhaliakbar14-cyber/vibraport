@@ -33,7 +33,7 @@ B2_COLORS = {
 }
 
 
-def render(df, time_axis, sampling_rate, make_chart_fn, metadata=None):
+def render(df, time_axis, sampling_rate, metadata=None):
     st.title("📡 Signal Analysis")
     st.divider()
 

@@ -63,28 +63,35 @@ def parse_file(file_bytes: bytes) -> tuple:
     return metadata, df, time_axis, sampling_rate
 
 
-def _compute_acceleration(df: pd.DataFrame, velocity_cols: list, sampling_rate: int) -> pd.DataFrame:
+def _compute_acceleration(df: pd.DataFrame, velocity_cols: list, sampling_rate: int, rename_map: dict = None) -> pd.DataFrame:
     """
     Acceleration as the time derivative of velocity (mm/s²).
     """
+    rename_map = rename_map if rename_map is not None else ACCEL_RENAME
     for col in velocity_cols:
-        accel_col = ACCEL_RENAME.get(col, col.replace('mm/s', 'mm/s²'))
+        accel_col = rename_map.get(col, col.replace('mm/s', 'mm/s²'))
         df[accel_col] = np.gradient(df[col].values, 1 / sampling_rate)
     return df
 
 
-def _compute_displacement(df: pd.DataFrame, velocity_cols: list, sampling_rate: int) -> pd.DataFrame:
+def _compute_displacement(df: pd.DataFrame, velocity_cols: list, sampling_rate: int, rename_map: dict = None) -> pd.DataFrame:
     """
     Displacement as the time integral of velocity (mm).
-    DC offset removed before integration to prevent drift.
-    Post-integration mean removal eliminates residual drift.
+
+    Linear detrending (not just mean subtraction) is applied both before and
+    after integration. Mean subtraction alone only removes a constant offset;
+    it does not remove a linear ramp caused by a small residual DC bias in
+    the velocity signal, which numerically compounds into a growing drift
+    once integrated. scipy.signal.detrend(type='linear') fits and removes a
+    best-fit line, which handles both cases safely.
     """
+    from scipy.signal import detrend
+    rename_map = rename_map if rename_map is not None else DISP_RENAME
     for col in velocity_cols:
-        disp_col = DISP_RENAME.get(col, col.replace('mm/s', 'mm'))
-        sig = df[col].values
-        sig = sig - np.mean(sig)
+        disp_col = rename_map.get(col, col.replace('mm/s', 'mm'))
+        sig = detrend(df[col].values, type='linear')
         displacement = np.cumsum(sig) * (1 / sampling_rate)
-        displacement = displacement - np.mean(displacement)
+        displacement = detrend(displacement, type='linear')
         df[disp_col] = displacement
     return df
 
@@ -116,7 +123,9 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
     metadata = {
         'Date':            r['date'], 
         'Time':            r['time'],
+        'Date & Time':     f"{r['date']} / {r['time']}",  # alias matching CSV header format, so app.py can read one key regardless of source
         'Calibration date': r['cal_date'],
+        'Date of calibration': r['cal_date'],  # alias matching CSV header key name
         'Record type':     r['record_type'],
         'Sampling rate':   f"{r['sampling_rate']} sps",
         'Record length':   f"{r['record_length_s']} s",
@@ -232,13 +241,8 @@ def _build_waveform_df(r: dict, sampling_rate: int) -> pd.DataFrame:
             'Longitudinal B2 (mm/s)': 'D_Long B2 (mm)',
             'Transversal B2 (mm/s)':  'D_Tran B2 (mm)',
         }
-        for col in b2_vel_cols:
-            accel_col = B2_ACCEL.get(col, col.replace('(mm/s)', '(mm/s²)'))
-            df[accel_col] = np.gradient(df[col].values, 1 / sampling_rate)
-            disp_col = B2_DISP.get(col, col.replace('(mm/s)', '(mm)'))
-            sig = df[col].values - np.mean(df[col].values)
-            disp = np.cumsum(sig) * (1 / sampling_rate)
-            df[disp_col] = disp - np.mean(disp)
+        df = _compute_acceleration(df, b2_vel_cols, sampling_rate, rename_map=B2_ACCEL)
+        df = _compute_displacement(df, b2_vel_cols, sampling_rate, rename_map=B2_DISP)
 
     return df
 
