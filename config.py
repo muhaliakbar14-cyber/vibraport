@@ -4,6 +4,7 @@ Global configuration and simulation parameters for Vibraport.
 """
 
 from dataclasses import dataclass, field
+from typing import List, Optional
 import numpy as np
 
 
@@ -87,6 +88,16 @@ class SimulationConfig:
     n_rows: int
     n_decks: int = 1
     deck_delay_ms: float = 0.0
+
+    # ── USBM charge-weight / distance amplitude scaling (optional) ──────────
+    # Defaults reproduce the original unscaled behavior: distance_ratio=1.0
+    # and no per-hole weights means every hole scales to 1.0 regardless of
+    # field_constant, since weight_ratio also ends up 1.0. See core/scaling.py.
+    scaling_enabled: bool = False
+    signature_weight_kg: float = 1.0
+    distance_ratio: float = 1.0
+    field_constant: float = 1.6
+    hole_weights_kg: Optional[List[float]] = None
 
     def samples_per_ms(self) -> float:
         return self.sample_rate / 1000

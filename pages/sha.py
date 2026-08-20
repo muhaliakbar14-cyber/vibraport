@@ -135,6 +135,146 @@ def render(df, time_axis, sampling_rate):
 
     st.divider()
 
+    # ── STEP 2.5 — Charge Weight & Distance Scaling (optional) ───────────────
+    st.markdown("## Step 2.5 — Charge Weight & Distance Scaling (optional)")
+    st.caption(
+        "By default every hole reuses the signature waveform unchanged. "
+        "Enable this to rescale each hole's amplitude for a different "
+        "charge weight and/or distance than the signature shot, using the "
+        "USBM scaled-distance law."
+    )
+
+    scaling_enabled = st.checkbox(
+        "Enable charge weight & distance scaling (USBM)",
+        value=False,
+        key="sha_scaling_enabled",
+    )
+
+    with st.expander("ℹ️ About USBM Scaling", expanded=scaling_enabled):
+        st.markdown(
+            r"""
+The signature hole recording captures the wave from **one** charge weight
+at **one** distance. If a simulated hole uses a different charge weight,
+or the whole pattern sits at a different distance from the monitor than
+the signature shot, its amplitude can be rescaled using the USBM
+square-root scaled-distance law (Duvall & Petkof):
+
+$$PPV = K \left(\dfrac{D}{\sqrt{W}}\right)^{-B}$$
+
+Rearranged into a per-hole **amplitude scale factor** applied to the
+recorded signature waveform ($K$ cancels out — we're scaling a measured
+wave, not predicting PPV from a blank page):
+
+$$\text{scale} = \left(\dfrac{W_{hole} / W_{sig}}{\text{distance\_ratio}^{2}}\right)^{0.5B}$$
+
+- **$W_{hole}$** — charge weight of the hole being simulated (kg)
+- **$W_{sig}$** — charge weight of the recorded signature hole (kg)
+- **distance_ratio** — $D_{hole} / D_{sig}$. Applied once for the whole
+  pattern, not per hole — see note below.
+- **$B$** (Field Constant) — your site's attenuation exponent from a
+  prior PPV-vs-scaled-distance regression (e.g. the **Attenuation & Safe
+  Zone** page). This is **not** calculated from the signature wave itself
+  — you need to already have it from historical monitoring data at your
+  site.
+
+**What this does and doesn't fix:** this only rescales amplitude — it
+assumes the scaled hole produces the *same-shaped* waveform (same
+frequency content, same duration), just bigger or smaller. That holds
+reasonably well for moderate charge-weight differences at a similar
+distance. It gets less reliable the further the scaled charge weight is
+from the signature charge, since ground attenuates high frequencies
+faster than low frequencies over distance — a genuinely farther hole
+should physically arrive lower-frequency and more spread out, not just
+"the same wave, smaller." Distance here only scales overall amplitude,
+not the frequency shift. It also doesn't account for different rock/
+geology along different holes' propagation paths. Treat scaled results
+as an engineering approximation, not an exact prediction — and be more
+cautious the larger the scale factor is.
+            """
+        )
+
+    signature_weight_kg = 1.0
+    distance_ratio = 1.0
+    field_constant = 1.6
+    hole_weights_kg = None
+
+    if scaling_enabled:
+        sc1, sc2, sc3 = st.columns(3)
+        with sc1:
+            signature_weight_kg = st.number_input(
+                "Signature Hole Charge Weight (kg)",
+                min_value=0.01, value=1.0, step=0.1,
+                key="sha_sig_weight",
+                help="Charge weight of the hole this recording came from.",
+            )
+        with sc2:
+            distance_ratio = st.number_input(
+                "Distance Ratio (pattern / signature)",
+                min_value=0.01, value=1.0, step=0.05,
+                key="sha_distance_ratio",
+                help="D_hole ÷ D_signature. 1.0 = pattern is at the same "
+                     "distance from the monitor as the signature shot.",
+            )
+        with sc3:
+            field_constant = st.number_input(
+                "Field Constant (B)",
+                min_value=0.0, value=1.6, step=0.1,
+                key="sha_field_constant",
+                help="Site-specific attenuation exponent from your own "
+                     "PPV-vs-scaled-distance regression. Not derived here.",
+            )
+
+        weight_mode = st.radio(
+            "Hole charge weight",
+            ["Same weight for every hole", "Different weight per hole"],
+            horizontal=True,
+            key="sha_weight_mode",
+        )
+
+        if weight_mode == "Different weight per hole":
+            st.caption(
+                f"Enter charge weight (kg) for each of the {num_holes} hole "
+                "positions. Same weights are reused for every row."
+            )
+            default_weights_df = pd.DataFrame({
+                "Hole": list(range(1, int(num_holes) + 1)),
+                "Charge Weight (kg)": [signature_weight_kg] * int(num_holes),
+            })
+            edited_weights_df = st.data_editor(
+                default_weights_df,
+                hide_index=True,
+                use_container_width=True,
+                key="sha_hole_weights_editor",
+                column_config={
+                    "Hole": st.column_config.NumberColumn(disabled=True),
+                    "Charge Weight (kg)": st.column_config.NumberColumn(
+                        min_value=0.01, step=0.1
+                    ),
+                },
+            )
+            hole_weights_kg = edited_weights_df["Charge Weight (kg)"].tolist()
+
+        # Warn if the resulting scale factors span a wide range — this is
+        # exactly where the same-waveform-shape assumption above gets shaky.
+        from core.scaling import usbm_scale_factor
+        weights_to_check = hole_weights_kg if hole_weights_kg else [signature_weight_kg]
+        computed_scales = [
+            usbm_scale_factor(w, signature_weight_kg, distance_ratio, field_constant)
+            for w in weights_to_check
+        ]
+        min_scale, max_scale = min(computed_scales), max(computed_scales)
+        if max_scale > 3.0 or (min_scale > 0 and min_scale < (1 / 3)):
+            st.warning(
+                f"⚠️ Computed scale factors range from {min_scale:.2f}× to "
+                f"{max_scale:.2f}× the signature waveform. Large scale "
+                "factors are where the same-waveform-shape assumption is "
+                "weakest — treat results at these holes with extra caution."
+            )
+        else:
+            st.caption(f"Computed scale factor range: {min_scale:.2f}× – {max_scale:.2f}×")
+
+    st.divider()
+
     # ── STEP 3 — Run Simulation ────────────────────────────────────────────────
     st.markdown("## Step 3 — Run the Simulation")
 
@@ -166,6 +306,11 @@ def render(df, time_axis, sampling_rate):
             n_rows=num_rows,
             n_decks=num_decks,
             deck_delay_ms=float(deck_delay),
+            scaling_enabled=scaling_enabled,
+            signature_weight_kg=float(signature_weight_kg),
+            distance_ratio=float(distance_ratio),
+            field_constant=float(field_constant),
+            hole_weights_kg=hole_weights_kg,
         )
 
         progress = st.progress(0, text="Running simulation...")

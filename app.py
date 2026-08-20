@@ -113,7 +113,6 @@ with st.sidebar:
         "Navigate",
         [
             "📊 Data Overview",
-            "📐 Math Analysis",
             "📡 Signal Analysis",
             "💥 Signature Hole Analysis",
             "📈 Attenuation & Safe Zone",
@@ -256,23 +255,18 @@ if not uploaded_file:
     with col1:
         st.markdown("### 📊 Data Overview")
         st.markdown("View recording info, peak particle velocity, dominant frequency, and raw waveforms.")
-        st.markdown("### 📐 Math Analysis")
-        st.markdown("Derive acceleration and displacement, analyze frequency spectrum, and inspect peak values.")
-    with col2:
         st.markdown("### 📡 Signal Analysis")
-        st.markdown("Stacked seismogram view with dual-geophone (Block 2) support, device-reported frequency values, and acceleration-at-peak-displacement for slope stability analysis.")
+        st.markdown("Stacked seismogram view with dual-geophone (Block 2) support, device-reported frequency values, acceleration, displacement, and acceleration-at-peak-displacement for slope stability analysis.")
+    with col2:
         st.markdown("### 💥 Signature Hole Analysis")
-        st.markdown("Simulate full blast patterns using a single signature hole recording to find optimal timing delays.")
-    with col3:
+        st.markdown("Simulate full blast patterns using a single signature hole recording to find optimal timing delays, with optional USBM charge-weight/distance amplitude scaling.")
         st.markdown("### 📈 Attenuation & Safe Zone")
         st.markdown("Regress PPV against scaled distance across multiple blast events, then predict safe distance, max charge, or expected PPV — including SNI 7571 building-class compliance tables.")
+    with col3:
         st.markdown("### 📉 Bargraph Monitoring")
         st.markdown("View long-term bargraph recordings (files ending in **M** before `.sis`) with configurable alert thresholds, exceedance markers, and frequency distribution.")
         st.markdown("### 🖨️ Print Report")
         st.markdown("Generate a formatted PDF-ready report from any uploaded recording.")
-
-    st.divider()
-    st.caption("📐 Math Analysis and 📡 Signal Analysis currently overlap in purpose (frequency + acceleration + displacement). Signal Analysis is the newer version — it adds dual-geophone support and uses device-reported frequency values. Kept both for now; consolidating is a planned cleanup.")
 
     st.divider()
 
@@ -317,13 +311,9 @@ if page == "📉 Bargraph Monitoring":
     st.stop()
 
 velocity_cols = ['Vertical (mm/s)', 'Longitudinal (mm/s)', 'Transversal (mm/s)']
-accel_cols    = ['A_Vert (mm/s²)', 'A_Long (mm/s²)', 'A_Tran (mm/s²)']
-disp_cols     = ['D_Vert (mm)', 'D_Long (mm)', 'D_Tran (mm)']
-accel_at_peak_map = {
-    'D_Vert (mm)': 'A_Vert (mm/s²)',
-    'D_Long (mm)': 'A_Long (mm/s²)',
-    'D_Tran (mm)': 'A_Tran (mm/s²)',
-}
+# accel/disp/acceleration-at-peak-displacement now live in Signal Analysis
+# (pages/signal_analysis.py) — the old Math Analysis page that duplicated
+# them here has been removed.
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -398,115 +388,7 @@ if page == "📊 Data Overview":
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2 — ANALYSIS
-# ══════════════════════════════════════════════════════════════════════════════
-elif page == "📐 Math Analysis":
-    st.title("📐 Math Analysis")
-    st.divider()
-
-    with st.expander("📡 Frequency Analysis", expanded=True):
-        st.subheader("Frequency Results")
-
-        freq_channels = {
-            'Vertical (mm/s)': '#00897B',
-            'Longitudinal (mm/s)': '#E53935',
-            'Transversal (mm/s)': '#5C6BC0',
-        }
-
-        results_freq = {}
-
-        for ch, color in freq_channels.items():
-            sig = df[ch].values
-            n = len(sig)
-
-            # FFT
-            fft_vals = np.fft.rfft(sig)
-            fft_mag = np.abs(np.fft.rfft(sig)) / n
-            freqs = np.fft.rfftfreq(n, d=1/sampling_rate)
-
-            # FFT Peak
-            fft_peak_freq = freqs[np.argmax(fft_mag)]
-
-            # Zero Crossing
-            zero_crossings = np.where(np.diff(np.sign(sig)))[0]
-            zc_freq = (len(zero_crossings) / 2) / (n / sampling_rate)
-
-            # Energy Spectrum percentiles
-            energy = fft_mag ** 2
-            cumulative_energy = np.cumsum(energy)
-            total_energy = cumulative_energy[-1]
-            freq_25 = freqs[np.searchsorted(cumulative_energy, 0.25 * total_energy)]
-            freq_50 = freqs[np.searchsorted(cumulative_energy, 0.50 * total_energy)]
-            freq_75 = freqs[np.searchsorted(cumulative_energy, 0.75 * total_energy)]
-
-            results_freq[ch] = {
-                'Zero Crossing (Hz)': round(zc_freq, 2),
-                'FFT Peak (Hz)': round(fft_peak_freq, 2),
-                'Energy 25% (Hz)': round(freq_25, 2),
-                'Energy 50% (Hz)': round(freq_50, 2),
-                'Energy 75% (Hz)': round(freq_75, 2),
-            }
-
-        # Display table
-        freq_df = pd.DataFrame(results_freq).T
-        st.dataframe(freq_df, use_container_width=True)
-
-        st.divider()
-
-        # FFT Spectrum chart
-        st.subheader("FFT Spectrum")
-        fig_fft = go.Figure()
-        for ch, color in freq_channels.items():
-            sig = df[ch].values
-            n = len(sig)
-            fft_mag = np.abs(np.fft.rfft(sig))
-            freqs = np.fft.rfftfreq(n, d=1/sampling_rate)
-            fig_fft.add_trace(go.Scatter(
-                x=freqs, y=fft_mag,
-                name=ch, mode='lines',
-                line=dict(color=color)
-            ))
-
-        fig_fft.update_layout(
-            xaxis_title="Frequency (Hz)",
-            yaxis_title="Amplitude",
-            height=400,
-            hovermode="x unified",
-            xaxis=dict(range=[0, 200])  # limit to 0-200 Hz, relevant range
-        )
-        st.plotly_chart(fig_fft, use_container_width=True)
-
-    # Acceleration graphs
-    with st.expander("⚡ Acceleration", expanded=False):
-        st.subheader("Acceleration")
-        make_chart(df, time_axis, accel_cols)
-
-    # Displacement graphs
-    with st.expander("📏 Displacement", expanded=False):
-        st.subheader("Displacement")
-        make_chart(df, time_axis, disp_cols)
-
-    # Acceleration at peak displacement
-    with st.expander("🎯 Acceleration at Peak Displacement", expanded=False):
-        if st.button("Analyze Peak Displacement", key="btn_peak"):
-            st.session_state['show_peak'] = True
-        if st.session_state.get('show_peak'):
-            c1, c2, c3 = st.columns(3)
-            for i, (disp_col, accel_col) in enumerate(accel_at_peak_map.items()):
-                peak_idx = df[disp_col].abs().idxmax()
-                peak_time = time_axis[peak_idx]
-                peak_disp = df[disp_col][peak_idx]
-                accel_at_peak = df[accel_col][peak_idx]
-                accel_at_peak_g = accel_at_peak / 9806.65
-                axis_name = disp_col.split('_')[1].split(' ')[0]
-                with [c1, c2, c3][i]:
-                    st.metric(f"{axis_name}. Peak Displacement", f"{abs(peak_disp):.3f} mm")
-                    st.metric(f"{axis_name}. Acceleration at Peak Displacement", f"{abs(accel_at_peak):.1f} mm/s²")
-                    st.metric(f"which is", f"= {abs(accel_at_peak_g):.3f} g")
-                    st.caption(f"Occurs at t = {peak_time:.1f} ms")
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 2.5 — SIGNAL ANALYSIS (stacked seismogram + Block 2 support)
+# PAGE 2 — SIGNAL ANALYSIS (stacked seismogram + Block 2 support)
 # ══════════════════════════════════════════════════════════════════════════════
 elif page == "📡 Signal Analysis":
     # signal_analysis.py expects time_axis in raw seconds; _parse_uploaded_file
@@ -687,4 +569,3 @@ elif page == "🖨️ Print Report":
         ppv_registry=st.session_state.ppv_registry,
         uploaded_files_dict=st.session_state.uploaded_files_dict,
     )
-

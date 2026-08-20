@@ -8,25 +8,31 @@ main entry point for running a Signature Hole Analysis.
 """
 
 import numpy as np
-from typing import Dict, List
+from typing import Dict, List, Optional
 from core.delay import compute_shifts, max_delay_samples
 from core.superposition import superpose_channels
 from core.metrics import peak_particle_velocity, vector_sum
 from core.fft_analysis import calculate_frequency
+from core.scaling import compute_scales
 
 
 def run_single(
     channels: Dict[str, np.ndarray],
     shifts: List[int],
+    scales: Optional[List[float]] = None,
 ) -> dict:
     """
     Run a single superposition for one delay combination.
+
+    Args:
+        scales — optional per-event amplitude scale factors from
+                 core.scaling.compute_scales(); None = unscaled.
 
     Returns:
         dict with PPV per channel, Peak Vector Sum,
         and dominant frequency per channel.
     """
-    combined = superpose_channels(channels, shifts)
+    combined = superpose_channels(channels, shifts, scales)
 
     ppv = {ch: peak_particle_velocity(sig) for ch, sig in combined.items()}
     pvs = vector_sum(ppv['Vert'], ppv['Long'], ppv['Tran'])
@@ -60,6 +66,21 @@ def run_simulation(
         'Tran': config.waveform['Tran'],
     }
 
+    # Scale factors don't depend on delay timing — same for every
+    # (hole_delay, row_delay) combination in the grid — so compute once
+    # outside the scan loop rather than recomputing per iteration.
+    scales = None
+    if getattr(config, 'scaling_enabled', False):
+        scales = compute_scales(
+            n_holes=config.n_holes,
+            n_rows=config.n_rows,
+            n_decks=config.n_decks,
+            signature_weight_kg=config.signature_weight_kg,
+            distance_ratio=config.distance_ratio,
+            field_constant=config.field_constant,
+            hole_weights_kg=config.hole_weights_kg,
+        )
+
     results = []
     total = len(config.hole_delays_ms) * len(config.row_delays_ms)
     count = 0
@@ -76,7 +97,7 @@ def run_simulation(
                 samples_per_ms=samples_per_ms,
             )
 
-            result = run_single(channels, shifts)
+            result = run_single(channels, shifts, scales)
 
             # Dominant frequency per channel
             freqs = {
