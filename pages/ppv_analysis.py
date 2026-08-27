@@ -92,14 +92,11 @@ def render(uploaded_files_dict, ppv_registry):
     _save_load_col, _info_col = st.columns([1, 3])
 
     with _save_load_col:
-        csv_bytes = st.session_state.ppv_table.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="💾 Save Table",
-            data=csv_bytes,
-            file_name="blast_event_data.csv",
-            mime="text/csv",
-            use_container_width=True,
-        )
+        # Placeholder filled in AFTER the data_editor call below, so the
+        # download always contains the latest edits even though this button
+        # is drawn above the table. See the comment near `edited_df` for why
+        # we don't source this from st.session_state.ppv_table directly.
+        _save_button_slot = st.empty()
         loaded_file = st.file_uploader(
             "📂 Load Table", type="csv",
             key="ppv_load_csv", label_visibility="visible"
@@ -126,29 +123,22 @@ def render(uploaded_files_dict, ppv_registry):
         st.info("Use **Tab** to confirm and move between cells · **Arrow keys** to navigate · **Click the bottom row** to add a new entry")
 
     # ── Editable table ─────────────────────────────────────────────────────────
-    # Use on_change callback to persist edits to session state only when the
-    # user commits a change — avoids the double-input revert bug while still
-    # keeping session state up to date for Save and regression.
-    def _sync_table():
-        if 'ppv_data_editor' in st.session_state:
-            state = st.session_state['ppv_data_editor']
-            df = st.session_state.ppv_table.copy()
-            # Apply edits
-            for idx, changes in state.get('edited_rows', {}).items():
-                for col, val in changes.items():
-                    df.at[idx, col] = val
-            # Apply additions
-            for row in state.get('added_rows', []):
-                new_row = {c: row.get(c, 0.0 if c != 'Source' else '') for c in df.columns}
-                df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
-            # Apply deletions
-            deleted = state.get('deleted_rows', [])
-            if deleted:
-                df = df.drop(index=deleted).reset_index(drop=True)
-            # Renumber No. column
-            df['No.'] = range(1, len(df) + 1)
-            st.session_state.ppv_table = df
-
+    # IMPORTANT — why there's no on_change/sync-back here:
+    # st.data_editor merges its own internal per-`key` edit state with the
+    # `data` you pass it on every rerun. That merge only works cleanly if
+    # `data` stays byte-identical across reruns. The previous version wrote
+    # every keystroke straight back into st.session_state.ppv_table (the same
+    # object fed back in as `data`), so on the very next rerun the widget saw
+    # a *different* `data` than before and threw away its focus/selection
+    # state — hence "click the cell again for every input". (This matches a
+    # long-standing Streamlit behavior: https://github.com/streamlit/streamlit/issues/7749)
+    #
+    # Fix: keep st.session_state.ppv_table frozen across simple cell edits and
+    # read the live, fully-merged result from `edited_df` (the return value)
+    # for everything downstream in this same run — Save, regression, etc.
+    # We only overwrite st.session_state.ppv_table when a row was actually
+    # added/deleted (a structural change the widget already has to redraw
+    # for), so normal typing never causes a remount.
     edited_df = st.data_editor(
         st.session_state.ppv_table,
         use_container_width=True,
@@ -164,9 +154,26 @@ def render(uploaded_files_dict, ppv_registry):
             'Transversal (mm/s)':   st.column_config.NumberColumn("Tran (mm/s)",   min_value=0.0, format="%.2f"),
         },
         key="ppv_data_editor",
-        on_change=_sync_table,
     )
-    data_rows = edited_df.to_dict('records')
+
+    # Renumber for display/downstream use only — never fed back as `data`.
+    live_df = edited_df.copy()
+    live_df['No.'] = range(1, len(live_df) + 1)
+
+    # Persist only on structural changes (row added/removed), not per keystroke.
+    if len(live_df) != len(st.session_state.ppv_table):
+        st.session_state.ppv_table = live_df
+
+    with _save_button_slot:
+        st.download_button(
+            label="💾 Save Table",
+            data=live_df.to_csv(index=False).encode('utf-8'),
+            file_name="blast_event_data.csv",
+            mime="text/csv",
+            use_container_width=True,
+        )
+
+    data_rows = live_df.to_dict('records')
 
     st.divider()
 
@@ -199,24 +206,38 @@ def render(uploaded_files_dict, ppv_registry):
             'Transversal': data['Transversal (mm/s)'].values,
         }
 
-        # Build max PPV from selected channels
-        selected = []
-        if use_vert: selected.append(channels['Vertical'])
-        if use_long: selected.append(channels['Longitudinal'])
-        if use_tran: selected.append(channels['Transversal'])
+        selected_names = [name for name, use in
+                          [('Vertical', use_vert), ('Longitudinal', use_long), ('Transversal', use_tran)]
+                          if use]
 
-        if not selected:
+        if not selected_names:
             st.error("Please select at least one channel.")
             return
 
-        max_ppv = np.maximum.reduce(selected)
-        valid = max_ppv > 0
+        # Pool the actual PPV points from every selected channel into the
+        # regression fit (not just their per-shot max). Taking the max across
+        # channels collapses everything to whichever channel happens to be
+        # largest — usually Vertical — so checking/unchecking the other boxes
+        # had no visible effect on the fitted line. Pooling means each
+        # selected channel contributes its own points, so the fit actually
+        # changes depending on which channels are included.
+        SD_list, V_list = [], []
+        for name in selected_names:
+            vals = channels[name]
+            valid_ch = vals > 0
+            SD_list.append(standard_scaled_distance(distances[valid_ch], charges[valid_ch]))
+            V_list.append(vals[valid_ch])
+        SD = np.concatenate(SD_list)
+        V = np.concatenate(V_list)
+
+        # `valid` (any selected channel > 0) is still used below for plotting
+        # markers and Block 1/2 masks against the original row order.
+        valid = np.zeros(len(charges), dtype=bool)
+        for name in selected_names:
+            valid |= channels[name] > 0
         Q = charges[valid]
         D = distances[valid]
-        V = max_ppv[valid]
 
-        # Compute scaled distance — standard formula: SD = D / √Q
-        SD = standard_scaled_distance(D, Q)
         xaxis_title = "Scaled Distance — D / √Q (m/kg^0.5)"
         eq_template = lambda K, n: f"PPV = {K} × SD^{n}"
         x_pts = {ch: standard_scaled_distance(D, Q) for ch in channels}

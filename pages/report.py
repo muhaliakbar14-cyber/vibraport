@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import io
 import math
+import concurrent.futures
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
@@ -23,6 +24,37 @@ from core.waveform import parse_sis_file, parse_file
 from core.sni_chart import build_sni_chart
 from core.sni_chart import SNI_LIMITS
 from config import DEFAULT_FREQUENCY_METHOD, LOW_AMPLITUDE_THRESHOLD
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Bounded Kaleido image export
+# ══════════════════════════════════════════════════════════════════════════════
+# fig.to_image() (Kaleido -> headless Chrome) has a long history of hanging
+# indefinitely with zero error when Chrome fails to start/respond — common on
+# Streamlit Community Cloud if Kaleido can't find a Chrome binary. There's no
+# built-in timeout, so a stuck call previously meant "Generate PDF" spun
+# forever with no feedback. We bound every export with a timeout and raise a
+# real, catchable error instead. See requirements.txt for the matching
+# kaleido version pin.
+
+class ImageExportTimeoutError(RuntimeError):
+    pass
+
+
+_IMG_EXPORT_TIMEOUT_S = 25
+_img_export_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="kaleido-export")
+
+
+def _to_image(fig, **kwargs) -> bytes:
+    future = _img_export_pool.submit(fig.to_image, **kwargs)
+    try:
+        return future.result(timeout=_IMG_EXPORT_TIMEOUT_S)
+    except concurrent.futures.TimeoutError:
+        raise ImageExportTimeoutError(
+            f"Chart image export did not finish within {_IMG_EXPORT_TIMEOUT_S}s. "
+            "This usually means Kaleido/Chrome failed to start in this environment "
+            "— check the kaleido version pin in requirements.txt."
+        )
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -99,6 +131,14 @@ def render(df, time_axis, metadata, sampling_rate,
                     uploaded_files_dict=uploaded_files_dict or {},
                 )
                 pdf_bytes = _build_vibraport_pdf(files, options)
+        except ImageExportTimeoutError as e:
+            st.error(
+                f"⚠️ PDF generation timed out while rendering a chart: {e} "
+                "If this keeps happening, it's very likely a Kaleido/Chrome "
+                "problem in this deployment — see the comment above kaleido "
+                "in requirements.txt."
+            )
+            return
         except ImportError as e:
             st.error(
                 f"Missing dependency: {e}. "
@@ -343,7 +383,7 @@ def _build_pdf(df, time_axis, metadata, sampling_rate, options: dict) -> bytes:
                                   margin=dict(t=30, b=40, l=55, r=20), font=dict(size=10))
             for ann in fig_wf.layout.annotations:
                 ann.update(font=dict(size=10))
-            img_wf_bytes = fig_wf.to_image(format='png', width=720, height=180 * nv, scale=2)
+            img_wf_bytes = _to_image(fig_wf, format='png', width=720, height=180 * nv, scale=2)
             story.append(RLImage(io.BytesIO(img_wf_bytes),
                                  width=usable, height=usable * (180 * nv / 720)))
             story.append(Paragraph("Figure 1 - Velocity waveform with peak markers.", S['caption']))
@@ -427,7 +467,7 @@ def _build_pdf(df, time_axis, metadata, sampling_rate, options: dict) -> bytes:
                 height=300, margin=dict(t=20, b=50, l=55, r=20),
                 legend=dict(orientation='h', y=-0.3), font=dict(size=10),
             )
-            img_fft_bytes = fig_fft.to_image(format='png', width=720, height=300, scale=2)
+            img_fft_bytes = _to_image(fig_fft, format='png', width=720, height=300, scale=2)
             story.append(RLImage(io.BytesIO(img_fft_bytes),
                                  width=usable, height=usable * (300 / 720)))
             story.append(Paragraph("Figure 2 - FFT amplitude spectrum (0-200 Hz).", S['caption']))
@@ -949,7 +989,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
             fig_wf.update_layout(height=max(200, int(200 * nv)), margin=dict(t=70, b=30, l=40, r=20), font=dict(size=9))
             for ann in fig_wf.layout.annotations:
                 ann.update(yshift=16)
-            img_wf_bytes = fig_wf.to_image(format="png", width=1200, height=max(200, int(200 * nv)), scale=2)
+            img_wf_bytes = _to_image(fig_wf, format="png", width=1200, height=max(200, int(200 * nv)), scale=2)
             img_wf = RLImage(io.BytesIO(img_wf_bytes), width=usable_w, height=wave_h)
             img_wf.drawOn(c, MARGIN, wave_bottom)
 
@@ -990,7 +1030,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                     legend=dict(orientation="h", y=-0.38, x=0, font=dict(size=8)),
                     yaxis_title_standoff=14,
                 )
-                sni_img = fig_sni.to_image(format="png", width=420, height=300, scale=2)
+                sni_img = _to_image(fig_sni, format="png", width=420, height=300, scale=2)
                 sni_h = min(bottom_block_h * 0.94, rv_h)
                 sni_w = right_w * 0.88
                 sni_x = MARGIN + left_w + (right_w - sni_w)
@@ -1032,7 +1072,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 fig_a.update_layout(height=fig_a_h, margin=dict(t=60, b=20, l=40, r=20), font=dict(size=9))
                 for ann in fig_a.layout.annotations:
                     ann.update(yshift=20)
-                img_a = fig_a.to_image(format="png", width=1000, height=fig_a_h, scale=2)
+                img_a = _to_image(fig_a, format="png", width=1000, height=fig_a_h, scale=2)
                 img_a_h = min(half_h, usable_w * (fig_a_h / 1000))
                 RLImage(io.BytesIO(img_a), width=usable_w, height=img_a_h).drawOn(
                     c, MARGIN, body_bottom + half_h + (half_h - img_a_h) / 2 + 6
@@ -1052,7 +1092,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 fig_d.update_layout(height=fig_d_h, margin=dict(t=60, b=20, l=40, r=20), font=dict(size=9))
                 for ann in fig_d.layout.annotations:
                     ann.update(yshift=20)
-                img_d = fig_d.to_image(format="png", width=1000, height=fig_d_h, scale=2)
+                img_d = _to_image(fig_d, format="png", width=1000, height=fig_d_h, scale=2)
                 img_d_h = min(half_h, usable_w * (fig_d_h / 1000))
                 RLImage(io.BytesIO(img_d), width=usable_w, height=img_d_h).drawOn(
                     c, MARGIN, body_bottom + (half_h - img_d_h) / 2
@@ -1093,7 +1133,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 )
                 for ann in fig_fft.layout.annotations:
                     ann.update(yshift=24)
-                img_fft = fig_fft.to_image(format="png", width=1000, height=fig_fft_h, scale=2)
+                img_fft = _to_image(fig_fft, format="png", width=1000, height=fig_fft_h, scale=2)
                 img_fft_h = min(body_top - body_bottom - 20, usable_w * (fig_fft_h / 1000))
                 fft_y = body_top - img_fft_h - 4
                 RLImage(io.BytesIO(img_fft), width=usable_w, height=img_fft_h).drawOn(

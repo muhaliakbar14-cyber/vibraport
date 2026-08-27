@@ -308,7 +308,7 @@ def _render_accel_at_peak(df, time_axis):
             with cols[i]:
                 st.markdown(f"**{label}**")
                 st.metric("Peak Displacement", f"{abs(peak_val):.4f} mm")
-                st.metric("Acceleration at Peak", f"{abs(accel_val):.2f} mm/s²")
+                st.metric("Acceleration at Peak Displacement", f"{abs(accel_val):.2f} mm/s²")
                 st.markdown(
                     f"<div style='margin-top:8px;'>"
                     f"<div style='font-size:12px;color:#888;margin-bottom:2px;'>Acceleration in g</div>"

@@ -104,12 +104,23 @@ def build_sni_chart(ppv_points):
         )
 
     # ── PPV data points ────────────────────────────────────────────────────────
+    # The y-axis is log-scaled and clipped to [1, 100] mm/s (SNI limits never
+    # go below 1). A log axis can't render 0, and points below the visible
+    # floor just vanish off the bottom edge — easy to miss if a channel
+    # happens to be < 1 mm/s. Instead, clamp anything below the floor to sit
+    # visibly AT the floor (1 mm/s / the x-axis), while keeping the true
+    # measured value in the hover text so nobody mistakes the marker's
+    # position for an actual 1 mm/s reading.
+    Y_FLOOR = 1.0
     for pt in ppv_points:
         ch      = pt['channel']
         ppv     = pt['ppv']
         freq    = pt['freq']
         block   = pt.get('block', 1)
         marker  = PPV_MARKERS.get(ch, dict(symbol='diamond', color='black', size=10, line_width=2))
+
+        below_floor = ppv < Y_FLOOR
+        display_ppv = Y_FLOOR if below_floor else ppv
 
         # Compliance: find which class limit is met at this frequency
         seg_idx = 0 if freq < 5 else (1 if freq < 20 else 2)
@@ -123,8 +134,12 @@ def build_sni_chart(ppv_points):
         label = f"Blk{block} {ch}" if block == 2 else ch
 
         show_legend = ch in ('Vertical', 'Longitudinal', 'Transversal')
+        hover_ppv_line = (
+            f'PPV: {ppv:.3f} mm/s (below chart floor, shown at {Y_FLOOR:.0f})<br>'
+            if below_floor else f'PPV: {ppv:.3f} mm/s<br>'
+        )
         fig.add_trace(go.Scatter(
-            x=[freq], y=[ppv],
+            x=[freq], y=[display_ppv],
             mode='markers',
             name=label,
             marker=dict(
@@ -132,11 +147,14 @@ def build_sni_chart(ppv_points):
                 color=marker['color'],
                 size=marker['size'],
                 line=dict(color=marker['color'], width=marker['line_width']),
+                # Faint outline ring flags a clamped point without adding a
+                # whole new legend entry per channel.
+                opacity=0.55 if below_floor else 1.0,
             ),
             showlegend=show_legend,
             hovertemplate=(
                 f'<b>{label}</b><br>'
-                f'PPV: {ppv:.3f} mm/s<br>'
+                f'{hover_ppv_line}'
                 f'Freq: {freq:.1f} Hz<br>'
                 f'{compliance_text}<extra></extra>'
             ),
