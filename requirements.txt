@@ -1,7 +1,10 @@
 streamlit
 pandas
 numpy
-plotly
+# Plotly 6 requires Kaleido >=1, which in turn needs a separately installed
+# Chrome/Chromium binary. Keep the last Plotly 5 release with Kaleido 0.2.1
+# so local and packaged offline builds can export charts without Chrome.
+plotly==5.24.1
 scipy
 reportlab
 # Kaleido >=1.0 stopped bundling its own Chromium and needs an explicit

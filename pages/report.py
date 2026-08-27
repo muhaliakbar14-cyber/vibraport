@@ -145,6 +145,9 @@ def render(df, time_axis, metadata, sampling_rate,
                 "Run `pip install reportlab kaleido` in your environment, then restart Streamlit."
             )
             return
+        except RuntimeError as e:
+            st.error(f"PDF chart rendering failed: {e}")
+            return
 
         filename = (active_name or 'recording').replace('.', '_')
         st.success("Report ready!")
@@ -654,7 +657,11 @@ def _build_pdf(df, time_axis, metadata, sampling_rate, options: dict) -> bytes:
 
 def _parse_any_file(file_bytes: bytes, filename: str):
     if filename and filename.lower().endswith(".sis"):
-        return parse_sis_file(file_bytes)
+        metadata, df, time_axis_seconds, sampling_rate = parse_sis_file(file_bytes)
+        # Report invariant: all time axes are milliseconds. app.py already
+        # supplies the active file in milliseconds; the SIS parser returns
+        # seconds for the additional selected files.
+        return metadata, df, time_axis_seconds * 1000, sampling_rate
     return parse_file(file_bytes)
 
 
@@ -691,7 +698,8 @@ def _build_report_files(selected_files, active, uploaded_files_dict):
 
 def _record_values_from_df(df, time_axis, sampling_rate, metadata):
     rows = []
-    time_ms = time_axis * 1000
+    # _build_report_files() guarantees milliseconds for every file.
+    time_ms = time_axis
     channel_info = (metadata or {}).get("Channel info", [])
 
     def _freq_for(axis, block, magnitude="Velocity"):
@@ -974,7 +982,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
         ]
         active_vel = [(col, c, lbl) for col, c, lbl in vel_cfg if col in df.columns]
         if active_vel:
-            time_ms = time_axis * 1000
+            time_ms = time_axis
             nv = len(active_vel)
             fig_wf = make_subplots(rows=nv, cols=1, shared_xaxes=True,
                                    subplot_titles=[lbl for _, _, lbl in active_vel],
@@ -984,8 +992,10 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 fig_wf.add_trace(go.Scatter(x=time_ms, y=sig, mode="lines",
                                             line=dict(color=color, width=1), showlegend=False),
                                  row=i2, col=1)
-            tick_v = list(range(0, int(time_ms[-1]) + 100, 100))
-            fig_wf.update_xaxes(tickvals=tick_v, row=nv, col=1)
+            # Let Plotly choose a small, readable set of ticks. Building an
+            # explicit tick every 100 ms can create tens of thousands of
+            # values when a time axis is malformed or a recording is long.
+            fig_wf.update_xaxes(nticks=12, title_text="Time (ms)", row=nv, col=1)
             fig_wf.update_layout(height=max(200, int(200 * nv)), margin=dict(t=70, b=30, l=40, r=20), font=dict(size=9))
             for ann in fig_wf.layout.annotations:
                 ann.update(yshift=16)
@@ -1064,7 +1074,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                                       subplot_titles=acc_cols, vertical_spacing=0.12)
                 for i2, col in enumerate(acc_cols, start=1):
                     key = col.split(" ")[0]
-                    fig_a.add_trace(go.Scatter(x=time_axis*1000, y=df[col].values, mode="lines",
+                    fig_a.add_trace(go.Scatter(x=time_axis, y=df[col].values, mode="lines",
                                                line=dict(color=color_map.get(key, "#E53935"), width=1),
                                                showlegend=False),
                                     row=i2, col=1)
@@ -1084,7 +1094,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                                       subplot_titles=disp_cols, vertical_spacing=0.12)
                 for i2, col in enumerate(disp_cols, start=1):
                     key = col.split(" ")[0]
-                    fig_d.add_trace(go.Scatter(x=time_axis*1000, y=df[col].values, mode="lines",
+                    fig_d.add_trace(go.Scatter(x=time_axis, y=df[col].values, mode="lines",
                                                line=dict(color=color_map.get(key, "#1E88E5"), width=1),
                                                showlegend=False),
                                     row=i2, col=1)
