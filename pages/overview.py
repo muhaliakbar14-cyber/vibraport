@@ -6,7 +6,18 @@ Data Overview page — recording info, measurement summary table, and waveform c
 import streamlit as st
 import pandas as pd
 from core import calculate_frequency, detect_equipment_model
-from core.sni_chart import build_sni_chart
+from core.compliance import (
+    STANDARD_ORDER,
+    STANDARDS,
+    assessment_label,
+    assessment_options,
+    build_compliance_chart,
+    category_options,
+    evaluate_points,
+    format_limit,
+    measurement_explanation,
+    overall_status,
+)
 from config import (
     FREQUENCY_METHODS, DEFAULT_FREQUENCY_METHOD,
     LOW_AMPLITUDE_THRESHOLD,
@@ -42,7 +53,7 @@ def render(df, time_axis, metadata, sampling_rate, make_chart_fn=None):
 
             st.dataframe(
                 summary_df,
-                use_container_width=True,
+                width="stretch",
                 hide_index=True,
                 column_config={
                     'Channel':    st.column_config.TextColumn('Channel'),
@@ -66,12 +77,12 @@ def render(df, time_axis, metadata, sampling_rate, make_chart_fn=None):
             if pvs_parts:
                 st.caption("Peak Vector Sum:  " + "    |    ".join(pvs_parts))
 
-    # ── SNI 7571:2023 Compliance Chart — waveform only ───────────────────────
+    # ── Structural vibration compliance — waveform only ──────────────────────
     if metadata.get('is_waveform', True):
         st.divider()
-        st.markdown("## SNI 7571:2023 Compliance")
+        st.markdown("## Compliance Assessment")
         with st.expander("📈 Compliance Chart", expanded=True):
-            _render_sni_chart(df, time_axis, sampling_rate, metadata)
+            _render_compliance_chart(df, time_axis, sampling_rate, metadata)
 
 
 
@@ -262,29 +273,38 @@ def _get_transducer_info(ch_idx, ch_lookup, geophone_test):
     return transducer, test
 
 
-# ── SNI 7571:2023 chart renderer ───────────────────────────────────────────────
+# ── Multi-standard compliance chart renderer ──────────────────────────────────
 
-def _render_sni_chart(df, time_axis, sampling_rate, metadata):
+def _render_compliance_chart(df, time_axis, sampling_rate, metadata):
     """
-    Plot PPV points for all active velocity channels onto the SNI 7571:2023
-    limit curve graph. User selects which infrastructure class applies.
+    Plot active velocity channels against the selected structural vibration
+    standard and duration. Measurement-location assumptions are explained,
+    not exposed as another selector.
     """
-    from core.sni_chart import SNI_LIMITS
-
-    # ── Class selector ─────────────────────────────────────────────────────────
-    class_options = {
-        'Class 1: Highly sensitive / heritage buildings':         1,
-        'Class 2: Sensitive / simple residential buildings':      2,
-        'Class 3: Standard residential buildings':                3,
-        'Class 4: Reinforced residential / commercial buildings': 4,
-        'Class 5: Heavy industrial / critical infrastructure':    5,
-    }
-    selected_label = st.selectbox(
-        "Infrastructure Class",
-        options=list(class_options.keys()),
-        index=2,  # default Class 3
+    standard_id = st.selectbox(
+        "Compliance Standard",
+        options=STANDARD_ORDER,
+        index=0,
+        format_func=lambda value: STANDARDS[value].title,
+        key="overview_compliance_standard",
     )
-    selected_class = class_options[selected_label]
+    duration_options = assessment_options(standard_id)
+    assessment = st.selectbox(
+        "Assessment Duration",
+        options=duration_options,
+        format_func=assessment_label,
+        disabled=len(duration_options) == 1,
+        key=f"overview_assessment_{standard_id}",
+    )
+    categories = category_options(standard_id)
+    default_category_index = 2 if standard_id == "sni_7571_2023" else min(1, len(categories) - 1)
+    selected_category = st.selectbox(
+        "Structure Category",
+        options=[category.id for category in categories],
+        index=default_category_index,
+        format_func=lambda value: next(category.label for category in categories if category.id == value),
+        key=f"overview_category_{standard_id}",
+    )
 
     # ── Build PPV points from current recording ────────────────────────────────
     freq_method = DEFAULT_FREQUENCY_METHOD
@@ -315,30 +335,40 @@ def _render_sni_chart(df, time_axis, sampling_rate, metadata):
         st.info("No velocity data available.")
         return
 
-    # ── Compliance summary ─────────────────────────────────────────────────────
-    limits = SNI_LIMITS[selected_class]
-    violations = []
-    for pt in ppv_points:
-        seg = 0 if pt['freq'] < 5 else (1 if pt['freq'] < 20 else 2)
-        if pt['ppv'] > limits[seg]:
-            violations.append(pt)
-
-    if violations:
-        names = ', '.join(f"Blk{v['block']} {v['channel']}" if v['block'] == 2
-                          else v['channel'] for v in violations)
-        st.error(f"⚠️ Exceeds Class {selected_class} limit: **{names}**")
+    results = evaluate_points(ppv_points, standard_id, assessment, selected_category)
+    status = overall_status(results)
+    category_label = next(category.label for category in categories if category.id == selected_category)
+    if status == "PASS":
+        st.success(f"✅ All evaluated channels pass: **{category_label}**")
+    elif status == "FAIL":
+        failed = ", ".join(result.channel for result in results if result.status == "FAIL")
+        st.error(f"⚠️ Limit exceeded for **{failed}** — {category_label}")
     else:
-        st.success(f"✅ All channels comply with Class {selected_class}")
+        review_channels = ", ".join(result.channel for result in results if result.status == "REVIEW")
+        st.warning(f"Review required for **{review_channels or 'this recording'}** — {category_label}")
 
-    # ── Chart ──────────────────────────────────────────────────────────────────
-    fig = build_sni_chart(ppv_points)
+    fig = build_compliance_chart(
+        ppv_points,
+        standard_id=standard_id,
+        assessment=assessment,
+        selected_category=selected_category,
+    )
+    st.plotly_chart(
+        fig,
+        width="stretch",
+        config={"displayModeBar": False, "scrollZoom": False},
+    )
 
-    # Highlight selected class curve
-    for trace in fig.data:
-        if hasattr(trace, 'name') and trace.name == f'Cl. {selected_class}':
-            trace.line.width = 3.5
+    result_rows = []
+    for point, result in zip(ppv_points, results):
+        result_rows.append({
+            "Channel": result.channel,
+            "PPV": f"{result.ppv:.2f} mm/s",
+            "Frequency": f"{result.frequency_hz:.1f} Hz",
+            "Applied Limit": f"{format_limit(result.limit)} mm/s" if result.limit is not None else "Review",
+            "Result": result.status,
+        })
+    st.dataframe(pd.DataFrame(result_rows), width="stretch", hide_index=True)
 
-    st.plotly_chart(fig, use_container_width=True)
-
-    # Legend note matching Vibracord convention
     st.caption("Tran: +   Vert: ×   Long: ○   (hollow = Block 2)")
+    st.caption(measurement_explanation(standard_id, assessment))

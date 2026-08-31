@@ -1,14 +1,63 @@
 import streamlit as st
+import base64
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+import plotly.io as pio
 from plotly.subplots import make_subplots
 from io import StringIO
+from pathlib import Path
 
 from core.waveform import parse_sis_file, parse_file as _core_parse_file
 from pages import report, ppv_analysis, monitoring, signal_analysis, sha, overview
 
 st.set_page_config(page_title="Vibraport", layout="wide")
+
+
+@st.cache_data(show_spinner=False)
+def _inter_font_css() -> str:
+    """Embed the UI typeface so it also works in the offline build."""
+    font_dir = Path(__file__).resolve().parent / "assets" / "fonts"
+    sources = []
+    for filename, weight in (
+        ("Inter-Regular.ttf", 400),
+        ("Inter-SemiBold.ttf", 600),
+        ("Inter-Bold.ttf", 700),
+    ):
+        encoded = base64.b64encode((font_dir / filename).read_bytes()).decode("ascii")
+        sources.append(
+            "@font-face {"
+            "font-family: 'Inter';"
+            f"src: url(data:font/ttf;base64,{encoded}) format('truetype');"
+            f"font-weight: {weight}; font-style: normal; font-display: swap;"
+            "}"
+        )
+    return "".join(sources)
+
+
+st.markdown(
+    f"""
+    <style>
+    {_inter_font_css()}
+    html, body, .stApp, [data-testid="stAppViewContainer"],
+    [data-testid="stSidebar"], .stMarkdown, .stDataFrame,
+    button, input, textarea, select {{
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+    }}
+    h1, h2, h3, h4, h5, h6 {{
+        font-family: 'Inter', 'Segoe UI', Arial, sans-serif !important;
+        font-weight: 600 !important;
+        letter-spacing: -0.018em;
+    }}
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+pio.templates["vibraport"] = go.layout.Template(
+    layout=go.Layout(font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="#30343B"))
+)
+pio.templates.default = "plotly_white+vibraport"
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 # Initialize session state for file manager
@@ -128,7 +177,7 @@ if not uploaded_file:
     col1, col2, col3 = st.columns(3)
     with col1:
         st.markdown("### 📊 Data Overview")
-        st.markdown("Recording info, per-channel/block measurement summary with transducer status, and SNI 7571:2023 compliance chart plotting this recording's PPV against building-class limit curves.")
+        st.markdown("Recording info, per-channel/block measurement summary with transducer status, and SNI, DIN, or BS structural-vibration compliance charts.")
         st.markdown("### 📡 Signal Analysis")
         st.markdown("Stacked seismogram view with dual-geophone (Block 2) support, device-reported frequency values, acceleration, displacement, and acceleration-at-peak-displacement for slope stability analysis.")
     with col2:

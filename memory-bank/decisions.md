@@ -81,3 +81,22 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
 - **5-hole table cap — was never a real limit.** It was the same form-staleness issue in a different spot: the table was sized from `num_holes`, which — before this fix — was stuck at its form-default (5) until Run was pressed. Fixed by decoupling the table from `num_holes` entirely: `st.data_editor(..., num_rows="dynamic")` lets the user freely add/remove rows via the table's own UI, independent of the blast-design form. Row count is validated against the submitted `num_holes` only at Run time (`st.error` + blocked run on mismatch, rather than silently guessing or truncating).
 - Trade-off made explicit to the user and accepted by them: the scaling section's widgets now trigger a full-page rerun (including Step 1's truncation chart above) on every checkbox/radio/number-input change, since they're no longer form-buffered. Scoped deliberately to just this section — Step 3's 10 blast-design fields keep the original debounced-form behavior, which is where the rerun cost that motivated the original fix (2026-08-19/20) actually mattered.
 - No changes to `core/scaling.py`, `core/engine.py`, `core/superposition.py`, `config.py`, or `tests/test_scaling.py` — the underlying math and `SimulationConfig` schema were already correct; every fix this round was in how `pages/sha.py` builds inputs for them.
+
+## 2026-08-31 — Shared multi-standard compliance engine
+- Decision: replace the SNI-only implementation used by Data Overview and the active PDF report with one shared compliance package supporting SNI 7571:2023, DIN 4150-3:2016, and BS 7385-2:1993.
+- Why: duplicating compliance logic between screen and report risks different limits/statuses for the same recording. The registry/evaluator/chart split makes the engineering rules testable without Streamlit or ReportLab.
+- User-facing terminology is **Short-term** and **Long-term**; transient/continuous terminology remains only where needed to explain the source standard.
+- Measurement location is not a UI input. Vibraport states the basis it applied and explains the relevant alternate standard columns so users can relate results to the real sensor position.
+- DIN basis: Short-term uses Table 1 foundation/all-directions limits; Long-term uses Table 4 topmost-floor horizontal limits and explains the separate floor-slab vertical values.
+- BS basis: Short-term uses building-base transient limits. Line 2 below 4 Hz requires a displacement check and therefore returns `REVIEW`. Long-term uses a conservative 50% screening curve; an exceedance returns `REVIEW`, not `FAIL`, because BS describes the reduction as condition-dependent rather than a universal limit.
+- Preserve `core/sni_chart.py` as a compatibility wrapper rather than breaking older call sites.
+
+## 2026-08-31 — Report export and visual-quality policy
+- Decision: keep the bounded Kaleido export path and verify material PDF changes by raster-rendering representative outputs, not only by checking that bytes were produced.
+- Why: the prior unbounded export could hang indefinitely, and a syntactically valid PDF can still contain clipped or overlapping charts/tables.
+- Inter is the preferred modern professional font, with Helvetica fallbacks if bundled font registration fails.
+- Source Notes 1-3 belong in the report header; redundant filename/"Data Summary" header text stays removed.
+
+## 2026-08-31 — Keep the structured memory bank
+- Decision: retain the existing focused files instead of adding a single `PROJECT_CONTEXT.md`.
+- Why: `current-state`, `decisions`, `work-log`, `next-steps`, and `handoff-latest` serve different update cadences. The earlier problem was stale content, not excessive fragmentation.

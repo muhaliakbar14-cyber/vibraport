@@ -2,7 +2,7 @@
 """
 PDF Report Generation page — exports a professional measurement report
 covering Recording Info, Measurement Summary, Signal Analysis, and
-(if available) Attenuation & SNI 7571 compliance results.
+structural vibration compliance results.
 
 reportlab is imported lazily inside _build_pdf() so this module can be
 imported even when the package is not yet installed.  The ImportError
@@ -23,6 +23,21 @@ from core import calculate_frequency, detect_equipment_model
 from core.waveform import parse_sis_file, parse_file
 from core.sni_chart import build_sni_chart
 from core.sni_chart import SNI_LIMITS
+from core.compliance import (
+    STANDARD_ORDER,
+    STANDARDS,
+    assessment_label,
+    assessment_options,
+    build_compliance_chart,
+    category_options,
+    chart_title,
+    evaluate_point,
+    evaluate_points,
+    format_limit,
+    measurement_basis,
+    measurement_explanation,
+    overall_status,
+)
 from config import DEFAULT_FREQUENCY_METHOD, LOW_AMPLITUDE_THRESHOLD
 
 
@@ -50,11 +65,14 @@ def _to_image(fig, **kwargs) -> bytes:
     try:
         return future.result(timeout=_IMG_EXPORT_TIMEOUT_S)
     except concurrent.futures.TimeoutError:
+        future.cancel()
         raise ImageExportTimeoutError(
             f"Chart image export did not finish within {_IMG_EXPORT_TIMEOUT_S}s. "
             "This usually means Kaleido/Chrome failed to start in this environment "
             "— check the kaleido version pin in requirements.txt."
         )
+    except Exception as exc:
+        raise RuntimeError(f"Chart image export failed: {exc}") from exc
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -98,17 +116,31 @@ def render(df, time_axis, metadata, sampling_rate,
     inc_ad = c2.checkbox("Acceleration + Displacement", value=False)
     inc_fft = c3.checkbox("FFT Analysis", value=False)
 
-    class_options = {
-        'Class 1 - Highly sensitive / heritage buildings':         1,
-        'Class 2 - Sensitive / simple residential buildings':      2,
-        'Class 3 - Standard residential buildings':                3,
-        'Class 4 - Reinforced residential / commercial buildings': 4,
-        'Class 5 - Heavy industrial / critical infrastructure':    5,
-    }
-    sni_class_label = st.selectbox(
-        "SNI 7571 Infrastructure Class", list(class_options.keys()), index=2
+    st.markdown("**Compliance assessment:**")
+    compliance_standard = st.selectbox(
+        "Compliance Standard",
+        options=STANDARD_ORDER,
+        format_func=lambda value: STANDARDS[value].title,
+        key="report_compliance_standard",
     )
-    sni_class = class_options[sni_class_label]
+    durations = assessment_options(compliance_standard)
+    assessment = st.selectbox(
+        "Assessment Duration",
+        options=durations,
+        format_func=assessment_label,
+        disabled=len(durations) == 1,
+        key=f"report_assessment_{compliance_standard}",
+    )
+    categories = category_options(compliance_standard)
+    category_index = 2 if compliance_standard == "sni_7571_2023" else min(1, len(categories) - 1)
+    compliance_category = st.selectbox(
+        "Structure Category",
+        options=[category.id for category in categories],
+        index=category_index,
+        format_func=lambda value: next(category.label for category in categories if category.id == value),
+        key=f"report_category_{compliance_standard}",
+    )
+    st.caption(measurement_explanation(compliance_standard, assessment))
 
     st.divider()
 
@@ -121,7 +153,9 @@ def render(df, time_axis, metadata, sampling_rate,
             inc_records=inc_records,
             inc_ad=inc_ad,
             inc_fft=inc_fft,
-            sni_class=sni_class,
+            compliance_standard=compliance_standard,
+            compliance_assessment=assessment,
+            compliance_category=compliance_category,
         )
         try:
             with st.spinner("Building PDF..."):
@@ -728,22 +762,30 @@ def _record_values_from_df(df, time_axis, sampling_rate, metadata):
             continue
         sig = df[col].values
         idx = int(abs(sig).argmax())
+        frequency = _freq_for(axis, block)
+        if frequency is None:
+            frequency = calculate_frequency(tuple(sig), sampling_rate, DEFAULT_FREQUENCY_METHOD)
         rows.append({
             "channel": f"{axis}{' B2' if block == 2 else ''}",
             "max": float(abs(sig[idx])),
+            "unit": "mm/s",
             "time_ms": float(time_ms[idx]),
-            "freq": _freq_for(axis, block),
+            "freq": frequency,
         })
 
     pa_col = next((c for c in df.columns if "(Pa)" in c), None)
     if pa_col:
         sig = df[pa_col].values
         idx = int(abs(sig).argmax())
+        frequency = _freq_for("Pressure", 1, magnitude="Pressure")
+        if frequency is None:
+            frequency = calculate_frequency(tuple(sig), sampling_rate, DEFAULT_FREQUENCY_METHOD)
         rows.append({
             "channel": "Air Pressure",
             "max": float(abs(sig[idx])),
+            "unit": "Pa",
             "time_ms": float(time_ms[idx]),
-            "freq": _freq_for("Pressure", 1, magnitude="Pressure"),
+            "freq": frequency,
         })
 
     return rows
@@ -811,7 +853,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
 
     PAGE_W, PAGE_H = A4
     MARGIN = 14 * mm
-    HEADER_H = 12 * mm
+    HEADER_H = 18 * mm
     FOOTER_H = 10 * mm
     usable_w = PAGE_W - 2 * MARGIN
     body_top = PAGE_H - MARGIN - HEADER_H - 4
@@ -823,17 +865,20 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
 
     body_font = "Helvetica"
     title_font = "Helvetica-Bold"
+    bold_font = "Helvetica-Bold"
     try:
         font_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "assets", "fonts"))
-        pdfmetrics.registerFont(TTFont("Montserrat Regular", os.path.join(font_dir, "Montserrat-Regular.ttf")))
-        pdfmetrics.registerFont(TTFont("GEOMETR415 BLK BT BLACK", os.path.join(font_dir, "GEOMETR415-BLK-BT.ttf")))
-        body_font = "Montserrat Regular"
-        title_font = "GEOMETR415 BLK BT BLACK"
+        pdfmetrics.registerFont(TTFont("Inter", os.path.join(font_dir, "Inter-Regular.ttf")))
+        pdfmetrics.registerFont(TTFont("Inter SemiBold", os.path.join(font_dir, "Inter-SemiBold.ttf")))
+        pdfmetrics.registerFont(TTFont("Inter Bold", os.path.join(font_dir, "Inter-Bold.ttf")))
+        body_font = "Inter"
+        title_font = "Inter SemiBold"
+        bold_font = "Inter Bold"
     except Exception:
         pass
 
     S = {
-        "title": P("rt_title", fontSize=14, fontName=title_font, alignment=TA_CENTER),
+        "title": P("rt_title", fontSize=13, fontName=title_font, alignment=TA_CENTER),
         "section": P("rt_sect", fontSize=11, fontName=title_font),
         "small": P("rt_small", fontSize=8, fontName=body_font),
         "td": P("rt_td", fontSize=8, fontName=body_font),
@@ -857,23 +902,89 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
             cmds.insert(0, ("BACKGROUND", (0, 0), (-1, 0), head_color))
         return cmds
 
-    def draw_header_footer(c, file_name: str, page_title: str, page_num: int):
+    def _clean_text(value):
+        value = str(value or "").strip()
+        return "" if value in ("", "-") else value
+
+    def _nice_symmetric_limit(series):
+        peak = max((float(np.max(np.abs(values))) for values in series if len(values)), default=1.0)
+        if not np.isfinite(peak) or peak <= 0:
+            return 1.0
+        target = peak * 1.08
+        exponent = math.floor(math.log10(target))
+        fraction = target / (10 ** exponent)
+        nice_fraction = next(v for v in (1, 1.25, 1.5, 2, 2.5, 3, 4, 5, 7.5, 10) if fraction <= v)
+        return nice_fraction * (10 ** exponent)
+
+    def _style_signal_figure(fig, row_count, shared_limit, time_end_ms, title_unit):
+        major_x = max(100.0, math.ceil((time_end_ms / 10.0) / 100.0) * 100.0)
+        for row in range(1, row_count + 1):
+            fig.update_yaxes(
+                range=[-shared_limit, shared_limit],
+                tickmode="linear", dtick=shared_limit / 2,
+                showgrid=True, gridcolor="#B7BDC5", gridwidth=0.8,
+                zeroline=True, zerolinecolor="#B7BDC5", zerolinewidth=0.8,
+                linecolor="#59616A", linewidth=0.7,
+                tickfont=dict(size=8),
+                row=row, col=1,
+            )
+            fig.update_xaxes(
+                tickmode="linear", dtick=major_x,
+                showgrid=True, gridcolor="#C4C9D0", gridwidth=0.7,
+                minor=dict(showgrid=True, dtick=major_x / 2, gridcolor="#E2E5E9"),
+                linecolor="#59616A", linewidth=0.7,
+                tickfont=dict(size=8),
+                title_text="Time (ms)" if row == row_count else None,
+                title_font=dict(size=9),
+                row=row, col=1,
+            )
+        fig.update_layout(
+            plot_bgcolor="white", paper_bgcolor="white",
+            margin=dict(t=42, b=34, l=58, r=16),
+            font=dict(size=8, color="#30343B"),
+        )
+        for ann in fig.layout.annotations:
+            ann.update(x=0.01, xanchor="left", yshift=12, font=dict(size=9, color="#30343B"))
+        return f"Shared scale: +/-{shared_limit:g} {title_unit}"
+
+    compliance_standard = options.get("compliance_standard", "sni_7571_2023")
+    compliance_assessment = options.get("compliance_assessment", "short_term")
+    compliance_category = int(options.get("compliance_category", options.get("sni_class", 3)))
+    compliance_spec = STANDARDS[compliance_standard]
+    compliance_category_spec = next(
+        category for category in category_options(compliance_standard)
+        if category.id == compliance_category
+    )
+    compliance_heading = chart_title(compliance_standard, compliance_assessment)
+
+    def draw_header_footer(c, metadata, page_num: int, total_pages: int):
         header_y = PAGE_H - MARGIN + 2
         footer_y = MARGIN - 6
-        company = options.get("project_name") or ""
+        project = _clean_text(options.get("project_name"))
+        c.setFillColor(rl_colors.black)
         c.setFont(title_font, 9)
-        c.drawString(MARGIN, header_y, company)
-        c.setFont(title_font, 8)
-        if file_name:
-            c.drawRightString(PAGE_W - MARGIN, header_y, file_name)
-        if page_title:
-            c.drawRightString(PAGE_W - MARGIN, header_y - 10, page_title)
+        c.drawString(MARGIN, header_y, "VIBRAPORT")
+        if project:
+            c.setFont(body_font, 7)
+            c.drawString(MARGIN, header_y - 10, f"Project: {project}")
+
+        if metadata:
+            note_lines = [_clean_text(metadata.get(f"Note {i}")) for i in range(1, 4)]
+            note_lines = [line for line in note_lines if line]
+            c.setFont(title_font, 7.5)
+            for line_no, line in enumerate(note_lines[:3]):
+                c.drawRightString(PAGE_W - MARGIN, header_y - (line_no * 9), line[:72])
+        else:
+            client = _clean_text(options.get("client_name"))
+            if client:
+                c.setFont(body_font, 7)
+                c.drawRightString(PAGE_W - MARGIN, header_y, client)
         c.setStrokeColor(rl_colors.black)
         c.setLineWidth(0.6)
-        c.line(MARGIN, PAGE_H - MARGIN - 10, PAGE_W - MARGIN, PAGE_H - MARGIN - 10)
+        c.line(MARGIN, PAGE_H - MARGIN - 22, PAGE_W - MARGIN, PAGE_H - MARGIN - 22)
         c.setFont(title_font, 8)
         c.drawString(MARGIN, footer_y, "VIBRAPORT by ABDIYASA")
-        c.drawRightString(PAGE_W - MARGIN, footer_y, f"Page {page_num}")
+        c.drawRightString(PAGE_W - MARGIN, footer_y, f"Page {page_num} of {total_pages}")
         c.line(MARGIN, MARGIN + 6, PAGE_W - MARGIN, MARGIN + 6)
 
     def draw_table(c, table: Table, x, y_top):
@@ -882,6 +993,7 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
         return h
 
     def draw_title(c, text, y_top):
+        c.setFillColor(rl_colors.black)
         c.setFont(title_font, 14)
         c.drawCentredString(PAGE_W / 2, y_top, text)
         return y_top - 14 - 6
@@ -889,34 +1001,60 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
     page_num = 1
     buf = io.BytesIO()
     c = canvas.Canvas(buf, pagesize=A4)
+    total_pages = (1 if options.get("inc_records") and len(files) > 1 else 0)
+    total_pages += len(files) * (1 + int(bool(options.get("inc_ad"))) + int(bool(options.get("inc_fft"))))
+    c.setTitle(f"Vibraport Vibration Report - {options.get('project_name') or 'Measurement'}")
+    c.setAuthor(options.get("operator") or "Vibraport")
+    c.setSubject(
+        f"Vibration measurement, waveform analysis, and {compliance_heading} compliance"
+    )
+    c.setCreator("Vibraport by ABDIYASA")
 
     # Records summary page (multi-file)
     if options.get("inc_records") and len(files) > 1:
-        draw_header_footer(c, "Multiple files", "Records summary", page_num)
+        draw_header_footer(c, None, page_num, total_pages)
         y = draw_title(c, "Records summary", body_top)
-        headers = ["No", "File / Serial / Date Time", "Note", "Time Location", "Record values"]
-        data = [[Paragraph(h, S["th"]) for h in headers]]
+        headers = ["No", "Record / Date & Time", "Source notes", "Duration", "Measurements", "Compliance"]
+        data = [[Paragraph(h, S["th_sm"]) for h in headers]]
         for i, f in enumerate(files, start=1):
             meta = f["metadata"]
             rec_vals = _record_values_from_df(f["df"], f["time_axis"], f["sampling_rate"], meta)
-            rec_txt = "<br/>".join(
-                [f"C{idx+1}: {r['max']:.2f} ({r['freq']} Hz)" if r.get("freq") is not None else f"C{idx+1}: {r['max']:.2f}"
-                 for idx, r in enumerate(rec_vals)]
-            )
+            rec_txt = "<br/>".join([
+                f"{r['channel']}: {r['max']:.2f} {r['unit']}"
+                + (f" ({r['freq']:.0f} Hz)" if r.get("freq") is not None else "")
+                for r in rec_vals
+            ])
             vs = meta.get("Vector sum", {})
             if vs and (vs.get("ch1_3") or 0) > 0:
                 rec_txt += f"<br/>PVS1: {vs.get('ch1_3'):.2f} mm/s"
+            ppv_points = _ppv_points_from_metadata(
+                meta, f["df"], f["sampling_rate"]
+            )
+            compliance_results = evaluate_points(
+                ppv_points, compliance_standard, compliance_assessment, compliance_category
+            )
+            record_status = overall_status(compliance_results)
+            source_notes = "<br/>".join(
+                filter(None, (_clean_text(meta.get(f"Note {n}")) for n in range(1, 4)))
+            ) or "-"
             row = [
-                Paragraph(str(i), S["td_c"]),
-                Paragraph(f"{meta.get('_filename','-')}<br/>{meta.get('Serial number','-')}<br/>{meta.get('Date','-')} {meta.get('Time','-')}", S["td"]),
-                Paragraph(meta.get("Note 1", "-") or "-", S["td"]),
-                Paragraph(meta.get("Record length", "-"), S["td_c"]),
-                Paragraph(rec_txt or "-", S["td"]),
+                Paragraph(str(i), S["td_c_sm"]),
+                Paragraph(f"{meta.get('_filename','-')}<br/>{meta.get('Date','-')} {meta.get('Time','-')}<br/>SN {meta.get('Serial number','-')}", S["td_sm"]),
+                Paragraph(source_notes, S["td_sm"]),
+                Paragraph(str(meta.get("Record length", "-")), S["td_c_sm"]),
+                Paragraph(rec_txt or "-", S["td_sm"]),
+                Paragraph(
+                    f"{compliance_spec.title}<br/>{compliance_category_spec.short_label}"
+                    f"<br/><b>{record_status}</b>",
+                    S["td_c_sm"],
+                ),
             ]
             data.append(row)
-        tbl = Table(data, colWidths=[usable_w * f for f in (0.06, 0.28, 0.18, 0.12, 0.36)])
+        tbl = Table(data, colWidths=[usable_w * f for f in (0.05, 0.23, 0.17, 0.10, 0.34, 0.11)])
         tbl.setStyle(TableStyle(base_ts(rl_colors.HexColor("#E0E0E0")) + [
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [rl_colors.white, rl_colors.HexColor("#F7F7F7")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.5),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.5),
         ]))
         draw_table(c, tbl, MARGIN, y)
         c.showPage()
@@ -930,16 +1068,16 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
         sps = f["sampling_rate"]
 
         # Data summary page
-        draw_header_footer(c, meta.get("_filename", ""), "Data summary", page_num)
+        draw_header_footer(c, meta, page_num, total_pages)
         y = draw_title(c, "Data summary", body_top)
 
         left = [
             ("Equipment", meta.get("Equipment", "-")),
             ("Serial number", meta.get("Serial number", "-")),
             ("Date of calibration", meta.get("Calibration date", "-")),
-            ("Note 1", meta.get("Note 1", "-") or "-"),
-            ("Note 2", meta.get("Note 2", "-") or "-"),
-            ("Note 3", meta.get("Note 3", "-") or "-"),
+            ("Sampling rate", meta.get("Sampling rate", f"{sps:g} sps")),
+            ("Record length", meta.get("Record length", "-")),
+            ("Prepared by", options.get("operator") or "-"),
         ]
         right = [
             ("Record", meta.get("_filename", "-")),
@@ -960,15 +1098,37 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
         info_tbl = Table(info_rows, colWidths=[usable_w * f for f in (0.22, 0.28, 0.22, 0.28)])
         info_tbl.setStyle(TableStyle(base_ts() + [
             ("ROWBACKGROUNDS", (0, 0), (-1, -1), [rl_colors.white, rl_colors.HexColor("#F5F5F5")]),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.2),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.2),
         ]))
-        y -= draw_table(c, info_tbl, MARGIN, y) + 14
+        y -= draw_table(c, info_tbl, MARGIN, y) + 9
+
+        compliance_note = Paragraph(
+            f"<b>{compliance_heading} - {compliance_category_spec.short_label}:</b> "
+            + measurement_explanation(compliance_standard, compliance_assessment),
+            S["td_sm"],
+        )
+        note_w, note_h = compliance_note.wrap(usable_w - 10, 30)
+        c.setFillColor(rl_colors.HexColor("#F2F4F7"))
+        c.roundRect(MARGIN, y - note_h - 6, usable_w, note_h + 6, 2, fill=1, stroke=0)
+        compliance_note.drawOn(c, MARGIN + 5, y - note_h - 3)
+        y -= note_h + 11
+
+        if options.get("report_notes") and idx == 1:
+            c.setFillColor(rl_colors.HexColor("#F2F4F7"))
+            c.roundRect(MARGIN, y - 13, usable_w, 13, 2, fill=1, stroke=0)
+            c.setFillColor(rl_colors.HexColor("#30343B"))
+            c.setFont(body_font, 6.8)
+            note_text = str(options["report_notes"]).replace("\n", " ")[:220]
+            c.drawString(MARGIN + 5, y - 9, f"Report note: {note_text}")
+            y -= 17
 
         c.setFont(title_font, 12)
         c.drawCentredString(PAGE_W / 2, y - 2, "Velocity (mm/s)")
-        y -= 12
+        y -= 10
 
-        bottom_block_h = 72 * mm
-        wave_bottom = body_bottom + bottom_block_h + 8
+        bottom_block_h = 76 * mm
+        wave_bottom = body_bottom + bottom_block_h + 18
         wave_top = y - 4
         wave_h = max(40 * mm, wave_top - wave_bottom)
 
@@ -984,78 +1144,148 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
         if active_vel:
             time_ms = time_axis
             nv = len(active_vel)
+            shared_velocity_limit = _nice_symmetric_limit([df[col].values for col, _, _ in active_vel])
+            subplot_labels = [
+                f"{label}  |  PPV {float(np.max(np.abs(df[col].values))):.2f} mm/s"
+                for col, _, label in active_vel
+            ]
             fig_wf = make_subplots(rows=nv, cols=1, shared_xaxes=True,
-                                   subplot_titles=[lbl for _, _, lbl in active_vel],
-                                   vertical_spacing=0.06)
+                                   subplot_titles=subplot_labels,
+                                   vertical_spacing=0.075)
             for i2, (col, color, lbl) in enumerate(active_vel, start=1):
                 sig = df[col].values
                 fig_wf.add_trace(go.Scatter(x=time_ms, y=sig, mode="lines",
-                                            line=dict(color=color, width=1), showlegend=False),
+                                            line=dict(color=color, width=0.9), showlegend=False),
                                  row=i2, col=1)
-            # Let Plotly choose a small, readable set of ticks. Building an
-            # explicit tick every 100 ms can create tens of thousands of
-            # values when a time axis is malformed or a recording is long.
-            fig_wf.update_xaxes(nticks=12, title_text="Time (ms)", row=nv, col=1)
-            fig_wf.update_layout(height=max(200, int(200 * nv)), margin=dict(t=70, b=30, l=40, r=20), font=dict(size=9))
-            for ann in fig_wf.layout.annotations:
-                ann.update(yshift=16)
+            scale_caption = _style_signal_figure(
+                fig_wf, nv, shared_velocity_limit, float(time_ms[-1]), "mm/s"
+            )
+            fig_wf.update_layout(height=max(240, int(180 * nv)))
+            c.setFont(body_font, 6.5)
+            c.setFillColor(rl_colors.HexColor("#4D535A"))
+            c.drawRightString(PAGE_W - MARGIN, y + 1, scale_caption)
             img_wf_bytes = _to_image(fig_wf, format="png", width=1200, height=max(200, int(200 * nv)), scale=2)
             img_wf = RLImage(io.BytesIO(img_wf_bytes), width=usable_w, height=wave_h)
             img_wf.drawOn(c, MARGIN, wave_bottom)
 
-        # Record values + SNI chart
+        # Record values + selected compliance chart
         rec_vals = _record_values_from_df(df, time_axis, sps, meta)
         if rec_vals:
-            left_w = usable_w * 0.45
-            right_w = usable_w - left_w
-            c.setFont(title_font, 10)
-            c.drawCentredString(MARGIN + (left_w * 0.5), body_bottom + bottom_block_h + 6, "Record Values")
-            rv_headers = ["Channel", "Maximum", "Time", "Frequency"]
+            panel_gap = 7
+            left_w = right_w = (usable_w - panel_gap) / 2
+            panel_title_y = body_bottom + bottom_block_h + 6
+            panel_top = body_bottom + bottom_block_h - 8
+            panel_bottom = body_bottom + 2
+            panel_h = panel_top - panel_bottom
+            velocity_rows = [r for r in rec_vals if r.get("unit") == "mm/s" and r.get("freq") is not None]
+            for r in velocity_rows:
+                result = evaluate_point(
+                    {"channel": r["channel"], "ppv": r["max"], "freq": r["freq"]},
+                    compliance_standard,
+                    compliance_assessment,
+                    compliance_category,
+                )
+                r["compliance_limit"] = result.limit
+                r["compliance_status"] = result.status
+                r["compliance_note"] = result.note
+            c.setFillColor(rl_colors.black)
+            c.setFont(bold_font, 12)
+            c.drawCentredString(MARGIN + (left_w * 0.5), panel_title_y, "Record Values")
+            rv_headers = ["Channel", "Peak / Time", "Freq.", "Limit", "Result"]
             rv_data = [[Paragraph(h, S["th_sm"]) for h in rv_headers]]
             for r in rec_vals:
+                is_velocity = r.get("unit") == "mm/s" and r.get("freq") is not None
                 rv_data.append([
                     Paragraph(str(r["channel"]), S["td_sm"]),
-                    Paragraph(f"{r['max']:.2f}", S["td_c_sm"]),
-                    Paragraph(f"{r['time_ms']:.1f} ms", S["td_c_sm"]),
+                    Paragraph(f"{r['max']:.2f} {r['unit']}<br/>{r['time_ms']:.1f} ms", S["td_c_sm"]),
                     Paragraph(f"{r['freq']} Hz" if r.get("freq") is not None else "-", S["td_c_sm"]),
+                    Paragraph(
+                        f"{format_limit(r.get('compliance_limit'))} mm/s"
+                        if is_velocity and r.get("compliance_limit") is not None else "-",
+                        S["td_c_sm"],
+                    ),
+                    Paragraph(
+                        f"<b>{r.get('compliance_status', 'REVIEW')}</b>" if is_velocity else "-",
+                        S["td_c_sm"],
+                    ),
                 ])
-            row_h = max(10, (bottom_block_h) / max(1, len(rv_data)))
+
+            vector_sum = meta.get("Vector sum", {}) or {}
+            pvs_parts = []
+            if (vector_sum.get("ch1_3") or 0) > 0:
+                pvs_parts.append(f"Block 1: {float(vector_sum['ch1_3']):.2f} mm/s")
+            if (vector_sum.get("ch4_6") or 0) > 0:
+                pvs_parts.append(f"Block 2: {float(vector_sum['ch4_6']):.2f} mm/s")
+            pvs_text = " &nbsp;&nbsp; | &nbsp;&nbsp; ".join(pvs_parts) if pvs_parts else "Not available"
+            pvs_row_idx = len(rv_data)
+            rv_data.append([
+                Paragraph("<b>Peak Vector Sum (PVS)</b>", S["td_sm"]),
+                Paragraph(pvs_text, S["td_sm"]), "", "", "",
+            ])
+
+            row_h = panel_h / len(rv_data)
             rv_tbl = Table(
                 rv_data,
-                colWidths=[left_w * 0.38, left_w * 0.22, left_w * 0.20, left_w * 0.20],
+                colWidths=[left_w * f for f in (0.25, 0.27, 0.14, 0.17, 0.17)],
                 rowHeights=[row_h] * len(rv_data),
             )
-            rv_tbl.setStyle(TableStyle(base_ts(rl_colors.HexColor("#E0E0E0"))))
-            rv_h = draw_table(c, rv_tbl, MARGIN, body_bottom + bottom_block_h - 8)
+            rv_style = TableStyle(base_ts(rl_colors.HexColor("#DCE1E7")) + [
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [rl_colors.white, rl_colors.HexColor("#F7F8FA")]),
+            ])
+            for row_idx, row in enumerate(rec_vals, start=1):
+                if row.get("compliance_status") == "PASS":
+                    rv_style.add("TEXTCOLOR", (4, row_idx), (4, row_idx), rl_colors.HexColor("#176B3A"))
+                elif row.get("compliance_status") == "FAIL":
+                    rv_style.add("TEXTCOLOR", (4, row_idx), (4, row_idx), rl_colors.HexColor("#B42318"))
+                elif row.get("compliance_status") == "REVIEW":
+                    rv_style.add("TEXTCOLOR", (4, row_idx), (4, row_idx), rl_colors.HexColor("#9A6700"))
+            rv_style.add("SPAN", (1, pvs_row_idx), (4, pvs_row_idx))
+            rv_style.add("BACKGROUND", (0, pvs_row_idx), (-1, pvs_row_idx), rl_colors.HexColor("#EEF1F4"))
+            rv_tbl.setStyle(rv_style)
+            draw_table(c, rv_tbl, MARGIN, panel_top)
 
             ppv_points = _ppv_points_from_metadata(meta, df, sps)
             if ppv_points:
-                c.setFont(title_font, 10)
-                c.drawCentredString(MARGIN + left_w + (right_w * 0.5), body_bottom + bottom_block_h + 6, "SNI 7571:2023")
-                fig_sni = build_sni_chart(ppv_points)
-                fig_sni.update_layout(
-                    height=300,
-                    width=420,
-                    margin=dict(t=10, b=60, l=40, r=20),
-                    legend=dict(orientation="h", y=-0.38, x=0, font=dict(size=8)),
-                    yaxis_title_standoff=14,
+                panel_x = MARGIN + left_w + panel_gap
+                c.setFillColor(rl_colors.black)
+                c.setFont(bold_font, 12)
+                c.drawCentredString(panel_x + (right_w * 0.5), panel_title_y, compliance_heading)
+                c.setFont(body_font, 5.2)
+                c.setFillColor(rl_colors.HexColor("#59616A"))
+                c.drawCentredString(
+                    panel_x + (right_w * 0.5), panel_title_y - 8,
+                    measurement_basis(compliance_standard, compliance_assessment)[:86],
                 )
-                sni_img = _to_image(fig_sni, format="png", width=420, height=300, scale=2)
-                sni_h = min(bottom_block_h * 0.94, rv_h)
-                sni_w = right_w * 0.88
-                sni_x = MARGIN + left_w + (right_w - sni_w)
-                sni_y = body_bottom + bottom_block_h - sni_h - 8
-                sni_img_rl = RLImage(io.BytesIO(sni_img), width=sni_w, height=sni_h)
-                sni_img_rl.drawOn(c, sni_x, sni_y)
-                c.setLineWidth(0.6)
-                c.rect(sni_x, sni_y, sni_w, sni_h)
+                compliance_fig = build_compliance_chart(
+                    ppv_points,
+                    standard_id=compliance_standard,
+                    assessment=compliance_assessment,
+                    selected_category=compliance_category,
+                    compact=True,
+                )
+                source_w = 480
+                source_h = max(300, round(source_w * (panel_h / right_w)))
+                compliance_fig.update_layout(
+                    title=None,
+                    height=source_h, width=source_w,
+                    margin=dict(t=8, b=28, l=40, r=8),
+                )
+                compliance_img = _to_image(
+                    compliance_fig, format="png", width=source_w, height=source_h, scale=2
+                )
+                compliance_img_rl = RLImage(
+                    io.BytesIO(compliance_img), width=right_w, height=panel_h
+                )
+                compliance_img_rl.drawOn(c, panel_x, panel_bottom)
 
         c.showPage()
         page_num += 1
 
         if options.get("inc_ad"):
-            draw_header_footer(c, meta.get("_filename", ""), "Derivative + Integration", page_num)
-            y = body_top
+            draw_header_footer(c, meta, page_num, total_pages)
+            draw_title(c, "Derived Signal Analysis", body_top)
             acc_cols = [c for c in df.columns if c.startswith("A_")]
             disp_cols = [c for c in df.columns if c.startswith("D_")]
             color_map = {
@@ -1066,52 +1296,75 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 "D_Long": "#E53935",
                 "D_Tran": "#5C6BC0",
             }
-            half_h = (body_top - body_bottom - 24) / 2
+            friendly_names = {
+                "A_Vert": "Vertical acceleration", "A_Long": "Longitudinal acceleration",
+                "A_Tran": "Transversal acceleration", "D_Vert": "Vertical displacement",
+                "D_Long": "Longitudinal displacement", "D_Tran": "Transversal displacement",
+            }
+            half_h = (body_top - body_bottom - 42) / 2
             if acc_cols:
                 c.setFont(title_font, 11)
-                c.drawCentredString(PAGE_W / 2, body_top - 12, "Acceleration (Derivative)")
+                c.drawCentredString(PAGE_W / 2, body_top - 28, "Acceleration")
+                acc_limit = _nice_symmetric_limit([df[col].values for col in acc_cols])
                 fig_a = make_subplots(rows=len(acc_cols), cols=1, shared_xaxes=True,
-                                      subplot_titles=acc_cols, vertical_spacing=0.12)
+                                      subplot_titles=[
+                                          f"{friendly_names.get(col.split(' ')[0], col)}  |  Peak "
+                                          f"{float(np.max(np.abs(df[col].values))):.1f} mm/s2"
+                                          for col in acc_cols
+                                      ], vertical_spacing=0.12)
                 for i2, col in enumerate(acc_cols, start=1):
                     key = col.split(" ")[0]
                     fig_a.add_trace(go.Scatter(x=time_axis, y=df[col].values, mode="lines",
-                                               line=dict(color=color_map.get(key, "#E53935"), width=1),
+                                               line=dict(color=color_map.get(key, "#E53935"), width=0.9),
                                                showlegend=False),
                                     row=i2, col=1)
                 fig_a_h = max(200, int(140 * len(acc_cols)))
-                fig_a.update_layout(height=fig_a_h, margin=dict(t=60, b=20, l=40, r=20), font=dict(size=9))
-                for ann in fig_a.layout.annotations:
-                    ann.update(yshift=20)
+                acc_scale = _style_signal_figure(
+                    fig_a, len(acc_cols), acc_limit, float(time_axis[-1]), "mm/s2"
+                )
+                fig_a.update_layout(height=fig_a_h)
                 img_a = _to_image(fig_a, format="png", width=1000, height=fig_a_h, scale=2)
                 img_a_h = min(half_h, usable_w * (fig_a_h / 1000))
+                acc_y = body_bottom + half_h + (half_h - img_a_h) / 2 + 5
                 RLImage(io.BytesIO(img_a), width=usable_w, height=img_a_h).drawOn(
-                    c, MARGIN, body_bottom + half_h + (half_h - img_a_h) / 2 + 6
+                    c, MARGIN, acc_y
                 )
+                c.setFont(body_font, 6.5)
+                c.drawString(MARGIN + 2, acc_y - 7, acc_scale)
             if disp_cols:
                 c.setFont(title_font, 11)
-                c.drawCentredString(PAGE_W / 2, body_bottom + half_h - 8, "Displacement (Integration)")
+                c.drawCentredString(PAGE_W / 2, body_bottom + half_h - 12, "Displacement")
+                disp_limit = _nice_symmetric_limit([df[col].values for col in disp_cols])
                 fig_d = make_subplots(rows=len(disp_cols), cols=1, shared_xaxes=True,
-                                      subplot_titles=disp_cols, vertical_spacing=0.12)
+                                      subplot_titles=[
+                                          f"{friendly_names.get(col.split(' ')[0], col)}  |  Peak "
+                                          f"{float(np.max(np.abs(df[col].values))):.4f} mm"
+                                          for col in disp_cols
+                                      ], vertical_spacing=0.12)
                 for i2, col in enumerate(disp_cols, start=1):
                     key = col.split(" ")[0]
                     fig_d.add_trace(go.Scatter(x=time_axis, y=df[col].values, mode="lines",
-                                               line=dict(color=color_map.get(key, "#1E88E5"), width=1),
+                                               line=dict(color=color_map.get(key, "#1E88E5"), width=0.9),
                                                showlegend=False),
                                     row=i2, col=1)
                 fig_d_h = max(200, int(140 * len(disp_cols)))
-                fig_d.update_layout(height=fig_d_h, margin=dict(t=60, b=20, l=40, r=20), font=dict(size=9))
-                for ann in fig_d.layout.annotations:
-                    ann.update(yshift=20)
+                disp_scale = _style_signal_figure(
+                    fig_d, len(disp_cols), disp_limit, float(time_axis[-1]), "mm"
+                )
+                fig_d.update_layout(height=fig_d_h)
                 img_d = _to_image(fig_d, format="png", width=1000, height=fig_d_h, scale=2)
                 img_d_h = min(half_h, usable_w * (fig_d_h / 1000))
+                disp_y = body_bottom + (half_h - img_d_h) / 2
                 RLImage(io.BytesIO(img_d), width=usable_w, height=img_d_h).drawOn(
-                    c, MARGIN, body_bottom + (half_h - img_d_h) / 2
+                    c, MARGIN, disp_y
                 )
+                c.setFont(body_font, 6.5)
+                c.drawString(MARGIN + 2, disp_y - 7, disp_scale)
             c.showPage()
             page_num += 1
 
         if options.get("inc_fft"):
-            draw_header_footer(c, meta.get("_filename", ""), "FFT Analysis", page_num)
+            draw_header_footer(c, meta, page_num, total_pages)
             y = draw_title(c, "FFT Analysis", body_top)
             vel_cols = [c for c in df.columns if "(mm/s)" in c and "A_" not in c and "D_" not in c]
             if vel_cols:
@@ -1124,11 +1377,13 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                 fig_fft = make_subplots(rows=len(vel_cols), cols=1, shared_xaxes=True,
                                         subplot_titles=[c.replace(" (mm/s)", "") for c in vel_cols],
                                         vertical_spacing=0.18)
+                fft_series = []
                 for i2, col in enumerate(vel_cols, start=1):
                     sig = df[col].values
                     fft_mag = np.abs(np.fft.rfft(sig)) / n_samp
                     freqs = np.fft.rfftfreq(n_samp, d=1 / sps)
                     mask = freqs <= 200
+                    fft_series.append(fft_mag[mask])
                     fig_fft.add_trace(go.Scatter(
                         x=freqs[mask], y=fft_mag[mask],
                         name=col.replace(" (mm/s)", ""),
@@ -1136,13 +1391,25 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                         showlegend=False,
                     ), row=i2, col=1)
                 fig_fft_h = max(240, int(140 * len(vel_cols)))
+                fft_limit = _nice_symmetric_limit(fft_series)
+                for row in range(1, len(vel_cols) + 1):
+                    fig_fft.update_yaxes(
+                        range=[0, fft_limit], showgrid=True,
+                        gridcolor="#B7BDC5", gridwidth=0.8,
+                        linecolor="#59616A", tickfont=dict(size=8), row=row, col=1,
+                    )
+                    fig_fft.update_xaxes(
+                        showgrid=True, gridcolor="#C4C9D0", gridwidth=0.7,
+                        minor=dict(showgrid=True, gridcolor="#E2E5E9"),
+                        linecolor="#59616A", tickfont=dict(size=8), row=row, col=1,
+                    )
                 fig_fft.update_layout(
                     xaxis_title=None, yaxis_title=None,
-                    height=fig_fft_h, margin=dict(t=60, b=40, l=40, r=20),
-                    font=dict(size=9),
+                    height=fig_fft_h, margin=dict(t=48, b=40, l=55, r=20),
+                    font=dict(size=8), plot_bgcolor="white", paper_bgcolor="white",
                 )
                 for ann in fig_fft.layout.annotations:
-                    ann.update(yshift=24)
+                    ann.update(x=0.01, xanchor="left", yshift=14, font=dict(size=9))
                 img_fft = _to_image(fig_fft, format="png", width=1000, height=fig_fft_h, scale=2)
                 img_fft_h = min(body_top - body_bottom - 20, usable_w * (fig_fft_h / 1000))
                 fft_y = body_top - img_fft_h - 4
@@ -1150,16 +1417,14 @@ def _build_vibraport_pdf(files, options: dict) -> bytes:
                     c, MARGIN, fft_y
                 )
                 c.setFont(title_font, 11)
-                c.drawString(MARGIN + 4, fft_y + (img_fft_h * 0.53), "Amplitude")
+                c.saveState()
+                c.translate(MARGIN + 5, fft_y + (img_fft_h * 0.5))
+                c.rotate(90)
+                c.drawCentredString(0, 0, "Amplitude")
+                c.restoreState()
                 c.drawCentredString(PAGE_W / 2, fft_y - 12, "Frequency (Hz)")
             c.showPage()
             page_num += 1
-
-    if options.get("report_notes"):
-        draw_header_footer(c, "Notes", "Notes", page_num)
-        c.setFont(body_font, 9)
-        c.drawString(MARGIN, body_top, f"Notes: {options['report_notes']}")
-        c.showPage()
 
     c.save()
     buf.seek(0)

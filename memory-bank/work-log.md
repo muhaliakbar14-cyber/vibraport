@@ -101,3 +101,21 @@
 - Found a real process error: in the prior session pass, the Signal Analysis nav entry, welcome-screen text, and routing `elif` block were already added to `app.py` — but the corresponding `import` was never added, and a leftover duplicate import (`signal_analysis, signal_analysis`) was present. This means the previous "done" state would have crashed with a NameError if a user had selected that page.
 - Compounding this: the previous summary to the user explicitly said Signal Analysis was "left alone, not wired in" — which was inaccurate given the code already partially referenced it. Corrected in this pass: fixed the duplicate import, removed the unused `make_chart_fn` parameter from `signal_analysis.render()` (confirmed dead via grep, never referenced in the function body) and updated the call site to match.
 - Lesson for future sessions: verify claims about "what was/wasn't changed" against the actual diff before reporting status to the user, not just from memory of intent.
+
+## 2026-08-31 — Multi-standard compliance and professional report pass
+- Added `core/compliance/` with a standards registry, shared evaluator, PASS/FAIL/REVIEW model, measurement-basis explanations, and generic Plotly chart builder.
+- Added SNI 7571:2023, DIN 4150-3:2016 Short-term/Long-term, and BS 7385-2:1993 Short-term/Long-term options to Data Overview and Print Report.
+- Kept measurement location out of the UI and displayed the applied basis/explanation instead.
+- Preserved the existing `core.sni_chart` interface through a compatibility wrapper.
+- Updated the active PDF report with generic compliance tables/charts, source Notes 1-3 in the header, Inter fonts, shared waveform scales, PVS, and standard/duration explanations.
+- Fixed CSV report frequency fallback so chart points and Record Values use an evaluated frequency even when channel metadata is absent.
+- Kept report chart export bounded by a timeout to prevent indefinite Kaleido hangs.
+- Replaced deprecated `use_container_width=True` calls in the touched Overview paths with `width="stretch"`.
+- Added `tests/test_compliance.py` covering boundary values, interpolation, chart construction, and status precedence.
+- Validation:
+  - `git diff --check` passed.
+  - `python -m py_compile app.py pages/overview.py pages/report.py core/sni_chart.py core/compliance/*.py` passed.
+  - `pytest -q` passed: **78 tests**.
+  - Live Streamlit browser test passed for upload, SNI/DIN/BS selection, DIN/BS duration switching, explanations, Print Report options, and end-to-end PDF generation.
+  - Browser console showed no errors in the tested workflow.
+  - SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were generated, raster-rendered, and visually inspected successfully.

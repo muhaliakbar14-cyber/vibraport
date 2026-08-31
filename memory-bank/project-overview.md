@@ -4,21 +4,21 @@
 Vibraport
 
 ## Goal
-Deliver a vibration-analysis app that stays Streamlit-first now, supports `.sis` and `.csv` parsing, and can later be deployed on a server if needed.
+Provide mining and vibration practitioners with a reliable Streamlit application for importing Vibracord recordings, inspecting waveforms and derived signals, performing blast/attenuation analyses, assessing structural-vibration compliance, and producing professional PDF reports.
 
 ## Current Direction
-Primary direction is the Streamlit app:
-- entrypoint: `app.py`
-- parser support: `.sis` and `.csv`
-- UX work: reduce reruns and blinking with `st.form` and `st.fragment`
+- Streamlit-first application in `app.py`.
+- `.sis` and waveform `.csv` support.
+- Local/offline browser workflow first; online deployment remains possible later.
+- Shared compliance engine for SNI 7571:2023, DIN 4150-3:2016, and BS 7385-2:1993.
+- Professional, field-usable reports with consistent calculations between the UI and PDF output.
 
-## Why this direction
-- Keep the app easy to run locally right now.
-- Preserve the original Vibraport analysis workflow.
-- Improve responsiveness without abandoning Streamlit.
-- Leave server deployment as a later step once the Streamlit experience is stable.
+## Product Principles
+- Formula and standards correctness before feature breadth.
+- One shared implementation for calculations used in multiple pages.
+- Clear assumptions and `REVIEW` states where a standard cannot safely become a simple automatic pass/fail check.
+- Verify important work with automated tests, live UI interaction, and rendered-output inspection.
 
-## Non-goals (current phase)
-- Reintroducing the offline desktop branch.
-- Rebuilding the Supabase/web stack as the primary path.
-- Final visual polish before the rerun-smoothing refactor.
+## Deferred Work
+- Authentication, cloud project storage, and SaaS deployment.
+- A native Windows executable; the current local/offline mode uses Streamlit in a local browser.
