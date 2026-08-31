@@ -41,8 +41,19 @@ Last updated: 2026-08-31.
 - Browser-driven testing completed on 2026-08-31 using a synthetic waveform CSV: upload, Data Overview, all standard/duration selectors, measurement-basis explanations, Print Report selectors, and end-to-end PDF generation all worked.
 - No browser console errors appeared in the tested workflow.
 - Representative SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were raster-rendered and checked for overlap, clipping, chart readability, and table alignment.
+- On branch `windows-packaging`, launcher and packaging checks pass and the full suite passes: **85 tests**.
+- A live launcher smoke test bound Streamlit to a dynamically selected `127.0.0.1` port; both `/_stcore/health` and `/` returned HTTP 200.
+- A Linux structural PyInstaller `onedir` build completed successfully and its frozen UI rendered all six pages in the navigation with no browser console errors. This is validation of the spec only, not a Windows deliverable.
+
+## Windows Packaging Track
+- Windows packaging work is isolated on branch `windows-packaging`; `main` remains the clean pushed application baseline at commit `c468136`.
+- `launcher_windows.py` is the first packaging component. It runs Streamlit in-process, avoids a terminal subprocess dependency, opens the browser only after the health endpoint is ready, and shows a native Windows error dialog on startup failure.
+- The pinned Windows manifest, PyInstaller spec, and PowerShell build script are implemented. All pinned direct and transitive dependencies resolve to CPython 3.12/Windows x64 wheels, including Kaleido's Windows runtime.
+- No native Windows portable bundle or installer has been created yet; the executable must be produced and exercised on Windows.
+- The intended first artifact is a PyInstaller `onedir` portable build, followed by an Inno Setup installer after clean-Windows validation.
 
 ## Known Operational Notes
 - Start locally from the repository root with `venv/bin/streamlit run app.py`.
-- The working tree contains the completed compliance/report changes and memory-bank updates but has not been committed or pushed.
+- The completed compliance/report work is committed and pushed on `main` at `c468136`.
+- Windows packaging source and tests are maintained on the separate `windows-packaging` branch.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.

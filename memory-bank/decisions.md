@@ -100,3 +100,14 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
 ## 2026-08-31 — Keep the structured memory bank
 - Decision: retain the existing focused files instead of adding a single `PROJECT_CONTEXT.md`.
 - Why: `current-state`, `decisions`, `work-log`, `next-steps`, and `handoff-latest` serve different update cadences. The earlier problem was stale content, not excessive fragmentation.
+
+## 2026-08-31 — Isolated Windows packaging track and local-browser launcher
+- Decision: develop Windows distribution support on branch `windows-packaging`, keep the Streamlit application architecture, and use a PyInstaller `onedir` bundle launched through a small in-process bootstrap entrypoint.
+- Why: Git isolation protects the pushed `main` baseline without maintaining a drifting duplicate repository. Running Streamlit in-process works in a frozen executable, while `onedir` avoids repeated extraction of the large SciPy/Kaleido runtime.
+- The first release will use the default browser on a dynamically selected `127.0.0.1` port. An embedded WebView is deferred because it adds a second desktop runtime without improving the engineering workflows.
+- Windows artifacts must be built and validated on Windows; the Linux development environment cannot produce a trustworthy native Windows PyInstaller executable.
+
+## 2026-08-31 — Pin the Windows build to CPython 3.12 and PyInstaller 6.22.2
+- Decision: use a fully pinned Windows x64 build manifest based on the dependency versions currently passing Vibraport's suite, with CPython 3.12 and PyInstaller 6.22.2.
+- Why: packaging failures caused by moving dependency versions are difficult to distinguish from application failures. The selected versions all resolve to Windows x64 wheels, and the same stack completed a structural PyInstaller build in the development environment.
+- PyInstaller uses an `_internal` contents directory. Application data paths are mirrored there so the launcher, `app.py`, report fonts, Streamlit configuration, and Kaleido runtime resolve consistently through PyInstaller's runtime paths.

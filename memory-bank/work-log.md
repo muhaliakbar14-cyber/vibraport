@@ -119,3 +119,47 @@
   - Live Streamlit browser test passed for upload, SNI/DIN/BS selection, DIN/BS duration switching, explanations, Print Report options, and end-to-end PDF generation.
   - Browser console showed no errors in the tested workflow.
   - SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were generated, raster-rendered, and visually inspected successfully.
+
+## 2026-08-31 — Windows packaging step 1: isolated launcher skeleton
+- Created branch `windows-packaging` from clean, pushed `main` commit `c468136`; no duplicate repository was created.
+- Audited current resource paths. `app.py` and `pages/report.py` resolve font assets relative to their module locations, which is compatible with a future PyInstaller data bundle.
+- Confirmed `build/` and `dist/` are already ignored.
+- Added `launcher_windows.py`:
+  - runs Streamlit through its in-process bootstrap API;
+  - requests an available local port and binds only to `127.0.0.1`;
+  - waits for the Streamlit health endpoint before opening the default browser;
+  - disables file watching/run-on-save for the frozen runtime;
+  - resolves normal and PyInstaller `_MEIPASS` resource roots;
+  - surfaces startup errors through a Windows message box.
+- Added `tests/test_windows_launcher.py` for development resource resolution, port selection, local Streamlit settings, and startup-error handling.
+- Found and fixed during live validation: Streamlit's programmatic `bootstrap.run()` did not apply port/address options before creating the server. The launcher now explicitly calls `bootstrap.load_config_options()` first; the corrected smoke run bound to `127.0.0.1` on a dynamic port.
+- Validation:
+  - `python -m py_compile launcher_windows.py tests/test_windows_launcher.py`: passed.
+  - `pytest -q tests/test_windows_launcher.py`: **4 passed**.
+  - `pytest -q`: **82 passed**.
+  - `git diff --check`: passed.
+  - Live launcher smoke: `/_stcore/health` and `/` both returned HTTP 200.
+
+## 2026-08-31 — Windows packaging step 2: reproducible onedir build definition
+- Added `requirements-windows.txt` with pinned CPython 3.12-compatible versions for Streamlit, Pandas, NumPy, Plotly 5/Kaleido 0.2.1, SciPy, ReportLab, PyInstaller, and pytest.
+- Added `packaging/vibraport_windows.spec`:
+  - uses a windowed PyInstaller `onedir` executable with `_internal` contents;
+  - includes `app.py`, `.streamlit/config.toml`, font assets, application modules, and Streamlit/Plotly/Kaleido data, binaries, metadata, and dynamic modules;
+  - disables UPX to reduce antivirus/SmartScreen false-positive risk.
+- Added `packaging/build_windows.ps1`:
+  - refuses non-Windows hosts;
+  - creates/reuses `.venv-windows` with 64-bit CPython 3.12;
+  - installs the pinned manifest and runs the full suite before building;
+  - verifies the executable and critical bundled resources after collection.
+- Added `.venv-windows/` to `.gitignore` and added `tests/test_windows_packaging.py`.
+- Installed PyInstaller 6.22.2 in the existing Linux development venv solely to execute a structural build.
+- First frozen launch found `server.port does not work when global.developmentMode is true`; fixed the launcher to explicitly set `global.developmentMode=False` and added an assertion.
+- Rebuilt successfully. The resulting Linux structural bundle was about 761 MB and contained `app.py`, Streamlit configuration, Inter fonts, and Kaleido's executable/runtime.
+- Browser-driven frozen smoke test rendered the welcome screen and all six navigation choices with no console errors. This used the browser-control skill because loading the Streamlit page is required to execute the dynamically loaded app script.
+- Validation:
+  - focused launcher + packaging tests: **7 passed**;
+  - full `pytest -q`: **85 passed**;
+  - `git diff --check`: passed;
+  - PyInstaller 6.22.2 structural `onedir` build: passed;
+  - frozen local UI load: passed with no browser errors;
+  - Windows x64/CPython 3.12 wheel resolution for all direct and transitive pinned dependencies: passed.

@@ -1,0 +1,13 @@
+# Reproducible Windows x64 build baseline. Use CPython 3.12.
+# Keep these application versions aligned with the tested Streamlit runtime.
+streamlit==1.62.0
+pandas==3.0.5
+numpy==2.5.2
+plotly==5.24.1
+scipy==1.18.1
+reportlab==5.0.1
+kaleido==0.2.1
+
+# Windows packaging and build-time verification.
+pyinstaller==6.22.2
+pytest==9.1.1
