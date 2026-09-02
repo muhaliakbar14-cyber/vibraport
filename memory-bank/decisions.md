@@ -111,3 +111,13 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
 - Decision: use a fully pinned Windows x64 build manifest based on the dependency versions currently passing Vibraport's suite, with CPython 3.12 and PyInstaller 6.22.2.
 - Why: packaging failures caused by moving dependency versions are difficult to distinguish from application failures. The selected versions all resolve to Windows x64 wheels, and the same stack completed a structural PyInstaller build in the development environment.
 - PyInstaller uses an `_internal` contents directory. Application data paths are mirrored there so the launcher, `app.py`, report fonts, Streamlit configuration, and Kaleido runtime resolve consistently through PyInstaller's runtime paths.
+
+## 2026-09-02 — Tray-owned lifecycle and single Windows instance
+- Decision: keep the local-browser UI but make the packaged process behave like a desktop application through a Windows tray icon with Open/Exit actions.
+- Exit captures the Streamlit `Server` instance created by the pinned bootstrap API and calls its graceful stop method. Closing the browser intentionally does not terminate the process.
+- A named `Local\\Vibraport.SingleInstance` Windows mutex is the authoritative process lock. The primary writes only its validated `127.0.0.1` URL to `%LOCALAPPDATA%/Vibraport/instance.json`; a later launch reopens that URL and exits instead of starting another server.
+- Why: this avoids orphaned duplicate processes while preserving the existing Streamlit application and keeps the control channel local to the user's Windows session.
+
+## 2026-09-02 — Vibraport logo direction
+- Decision: use a simple circular navy-and-white V mark whose angular side pulses suggest vibration, visually related to but distinct from the Abdiyasa Dharma Inovasi reference logo.
+- The logo contains no text, gradients, shadows, or third color. The transparent PNG is the master UI/tray asset, and the ICO contains 16, 24, 32, 48, 64, 128, and 256 px sizes for Windows.

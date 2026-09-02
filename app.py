@@ -11,7 +11,8 @@ from pathlib import Path
 from core.waveform import parse_sis_file, parse_file as _core_parse_file
 from pages import report, ppv_analysis, monitoring, signal_analysis, sha, overview
 
-st.set_page_config(page_title="Vibraport", layout="wide")
+APP_ICON = Path(__file__).resolve().parent / "assets" / "icons" / "vibraport-logo.png"
+st.set_page_config(page_title="Vibraport", page_icon=str(APP_ICON), layout="wide")
 
 
 @st.cache_data(show_spinner=False)

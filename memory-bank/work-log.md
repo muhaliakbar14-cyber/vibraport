@@ -163,3 +163,23 @@
   - PyInstaller 6.22.2 structural `onedir` build: passed;
   - frozen local UI load: passed with no browser errors;
   - Windows x64/CPython 3.12 wheel resolution for all direct and transitive pinned dependencies: passed.
+
+## 2026-09-02 — Windows packaging step 3: tray, single instance, and logo
+- User confirmed the prior native Windows portable bundle built successfully and all application functions, including Print Report, worked before this lifecycle/branding update.
+- Used the image-generation skill with `/home/bolay/ADI/Logo.bmp` as a style reference. Converted a read-only copy to PNG for inspection because the visual tool could not decode the BMP directly; the original company logo was not changed.
+- Generated an original Vibraport V/vibration concept, then flattened the selected mark mechanically to a two-color navy (`#1F2F78`) and white transparent PNG.
+- Added `assets/icons/vibraport-logo.png` and a Windows ICO containing 16, 24, 32, 48, 64, 128, and 256 px sizes. Verified the full-size and 16 px renders visually and validated the dominant opaque palette in tests.
+- Integrated the mark as the PyInstaller executable icon, `pystray` image, and Streamlit favicon.
+- Added a native tray menu:
+  - **Open Vibraport** rechecks server health and opens the current URL;
+  - **Exit Vibraport** calls the captured Streamlit `Server.stop()` and stops the tray loop.
+- Added a `Local\\Vibraport.SingleInstance` Windows mutex. The primary publishes only its safe localhost URL under `%LOCALAPPDATA%/Vibraport`; later launches reopen the healthy primary and exit.
+- Added controller tests for shutdown before/after server attachment, tray callbacks, instance URL state/validation, second-launch behavior, and Streamlit server capture.
+- Added `pystray==0.19.5`, verified its Windows-compatible wheel resolution, and included the Windows tray backend in the PyInstaller spec.
+- Validation:
+  - focused launcher/packaging suite: **15 passed**;
+  - full `pytest -q`: **93 passed**;
+  - `git diff --check`: passed;
+  - updated Linux structural PyInstaller `onedir` build: passed;
+  - frozen Streamlit welcome UI and generated favicon: loaded successfully with no browser warnings/errors.
+- Native Windows tray/mutex testing remains required after the branch is pushed and rebuilt on Windows.

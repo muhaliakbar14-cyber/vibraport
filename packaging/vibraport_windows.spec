@@ -2,6 +2,7 @@
 """PyInstaller onedir specification for the Windows Vibraport bundle."""
 
 from pathlib import Path
+import sys
 
 from PyInstaller.utils.hooks import collect_all, collect_submodules
 
@@ -13,6 +14,8 @@ PROJECT_ROOT = Path(SPECPATH).resolve().parent
 hiddenimports = ["app", "config"]
 for package_name in ("core", "optimizer", "pages", "regression"):
     hiddenimports += collect_submodules(package_name)
+if sys.platform == "win32":
+    hiddenimports.append("pystray._win32")
 
 # Streamlit contains its compiled frontend; Kaleido 0.2.1 contains the browser
 # runtime used for offline Plotly image export. collect_all preserves their
@@ -63,6 +66,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     contents_directory="_internal",
+    icon=str(PROJECT_ROOT / "assets" / "icons" / "vibraport.ico"),
 )
 
 coll = COLLECT(

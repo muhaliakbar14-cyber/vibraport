@@ -1,12 +1,13 @@
 # Next Steps
 
-Last updated: 2026-08-31.
+Last updated: 2026-09-02.
 
 ## Immediate
-1. Run `packaging/build_windows.ps1` on a Windows 10/11 x64 machine with CPython 3.12 to produce the native portable bundle.
-2. Test that bundle on a clean Windows machine or VM across all six pages using a real `.sis`, waveform `.csv`, and multi-file PDF report; visually inspect the generated PDFs.
-3. Review the native bundle size and warnings, then optimize safe unused dependencies if needed without removing Streamlit, Plotly, Kaleido, SciPy, ReportLab, or the shared compliance engine.
-4. Only after the portable build passes, add an Inno Setup installer with shortcuts, version metadata, and uninstall support.
+1. Commit and push the tray/single-instance/logo update on `windows-packaging` after the user approves the logo.
+2. Pull the branch and rerun `packaging/build_windows.ps1` on Windows 10/11 x64 to produce the updated portable bundle.
+3. Confirm the native tray icon, Open/Exit commands, graceful process shutdown, second-launch reopen behavior, executable icon, and browser favicon on Windows.
+4. Review the native bundle size and warnings, then optimize safe unused dependencies if needed without removing Streamlit, Plotly, Kaleido, SciPy, ReportLab, or the shared compliance engine.
+5. Only after the updated portable build passes, add an Inno Setup installer with shortcuts, version metadata, and uninstall support.
 
 ## Product Hardening
 1. Add fixture-locked tests sourced from worked examples for every implemented compliance curve and boundary, including DIN alternate sensor-location columns if those are later automated.

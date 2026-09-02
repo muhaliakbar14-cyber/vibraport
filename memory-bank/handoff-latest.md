@@ -1,4 +1,4 @@
-# Latest Handoff (2026-08-31)
+# Latest Handoff (2026-09-02)
 
 ## Completed
 - Vibraport remains a six-page Streamlit application with `.sis`/`.csv`, dual-block waveform, SHA, attenuation, monitoring, and PDF-report workflows.
@@ -39,12 +39,24 @@
 - All pinned dependencies and transitives successfully resolved/downloaded as Windows x64/Python 3.12 wheels.
 - A Linux structural build completed and contained app/config/fonts/Kaleido. Its frozen application rendered the six-page welcome UI with no browser errors.
 - The structural bundle was about 761 MB on Linux; native Windows size must be measured before installer work.
-- No native Windows executable or installer exists yet.
+- The user built the native Windows portable bundle and reported that all functions, including Print Report, ran successfully. No installer exists yet.
+
+## Windows Packaging Step 3 — Tray, Single Instance, and Branding
+- Added a native Windows `pystray` icon with **Open Vibraport** and **Exit Vibraport**. The default/double-click tray action opens the browser; Exit calls the captured Streamlit server's graceful stop method.
+- Added a named Windows mutex so only one Vibraport process can run per user session. A second executable launch validates and opens the existing `127.0.0.1` URL, then exits.
+- Runtime instance state contains only PID and localhost URL and is stored in `%LOCALAPPDATA%/Vibraport/instance.json`; primary shutdown removes it.
+- Added `assets/icons/vibraport-logo.png` and multi-resolution `assets/icons/vibraport.ico`, generated from the user's Abdiyasa reference as an original two-color V/vibration mark.
+- Integrated the logo into the executable, system tray, and Streamlit browser favicon.
+- Added `pystray==0.19.5` and explicit Windows backend collection.
+- Focused launcher/packaging tests: **15 passed**. Full suite: **93 passed**.
+- Updated Linux structural PyInstaller build succeeded; frozen UI and favicon loaded with no browser errors.
+- Windows-only mutex and tray behavior still require a rebuilt native bundle for final validation.
+- Changes are uncommitted and unpushed pending user review of the logo.
 
 ## Immediate Next Task
-1. Run `packaging/build_windows.ps1` on Windows 10/11 x64 with CPython 3.12.
-2. Exercise the resulting `dist/Vibraport/Vibraport.exe` with real `.sis` and `.csv` inputs and a multi-file PDF report.
-3. Record native bundle size/warnings and fix any frozen-only failures before adding the installer.
+1. Obtain user approval for the generated logo, then commit and push this update.
+2. Rebuild on Windows and verify tray Open/Exit, clean shutdown, second-launch reopen, and all three icon surfaces.
+3. Recheck real `.sis`, `.csv`, and multi-file PDF workflows before installer work.
 
 ## Guardrails for the Next Session
 - Read `memory-bank/current-state.md`, `decisions.md`, `next-steps.md`, and this file first.

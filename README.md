@@ -86,6 +86,23 @@ Kemudian buka:
 http://localhost:8501
 ```
 
+## Windows Portable Build
+
+Pada Windows 10/11 x64 dengan CPython 3.12, jalankan:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\packaging\build_windows.ps1
+```
+
+Hasil portable berada di `dist\Vibraport\`. Seluruh folder harus disalin;
+`Vibraport.exe` memerlukan isi folder `_internal` di sebelahnya.
+
+Saat dijalankan, Vibraport menampilkan ikon di Windows system tray dan membuka
+antarmuka lokal di browser. Menutup tab browser tidak menghentikan aplikasi.
+Gunakan menu tray **Open Vibraport** untuk membukanya kembali atau **Exit
+Vibraport** untuk menghentikan server secara bersih. Jika executable diklik dua
+kali, instance kedua membuka kembali instance yang sudah berjalan lalu keluar.
+
 ## Catatan
 
 Vibraport merupakan **alat bantu analisis engineering**, bukan pengganti alat ukur, prosedur monitoring yang benar, standar/regulasi, atau engineering judgement.

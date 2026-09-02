@@ -68,7 +68,8 @@ try {
         (Join-Path $BundleRoot "Vibraport.exe"),
         (Join-Path $RuntimeRoot "app.py"),
         (Join-Path $RuntimeRoot ".streamlit\config.toml"),
-        (Join-Path $RuntimeRoot "assets\fonts\Inter-Regular.ttf")
+        (Join-Path $RuntimeRoot "assets\fonts\Inter-Regular.ttf"),
+        (Join-Path $RuntimeRoot "assets\icons\vibraport-logo.png")
     )
     foreach ($RequiredOutput in $RequiredOutputs) {
         if (-not (Test-Path $RequiredOutput)) {

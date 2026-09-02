@@ -1,15 +1,17 @@
 # Architecture
 
-Last updated: 2026-08-31.
+Last updated: 2026-09-02.
 
 ## Runtime and Routing
 - `app.py`: Streamlit entrypoint, file manager/session registry, parse caching, navigation, and explicit page routing.
-- `launcher_windows.py`: Windows packaging entrypoint; selects a free localhost port, applies local-only Streamlit settings, waits for server health, and opens the default browser. It runs Streamlit in-process so it can later be frozen by PyInstaller.
+- `launcher_windows.py`: Windows packaging entrypoint; selects a free localhost port, applies local-only Streamlit settings, waits for server health, and opens the default browser. A named Windows mutex enforces one instance, `%LOCALAPPDATA%/Vibraport/instance.json` publishes only its localhost URL for reopen requests, and the system-tray controller provides Open/Exit commands. Tray Exit captures and gracefully stops Streamlit's server.
 - `.streamlit/config.toml`: hides Streamlit's automatic pages navigation.
 
 ## Windows Build Pipeline
-- `requirements-windows.txt`: pinned CPython 3.12 application, test, and PyInstaller dependencies for reproducible Windows x64 builds.
-- `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It includes the dynamically loaded `app.py`, application packages, Streamlit/Plotly/Kaleido data and binaries, configuration, and font assets under the `_internal` runtime directory.
+- `requirements-windows.txt`: pinned CPython 3.12 application, test, PyInstaller, and `pystray` dependencies for reproducible Windows x64 builds.
+- `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It includes the dynamically loaded `app.py`, application packages, Streamlit/Plotly/Kaleido data and binaries, configuration, fonts, logo assets, Windows tray backend, and executable icon under the `_internal` runtime directory.
+- `assets/icons/vibraport-logo.png`: flat navy/white transparent master used for the tray and browser favicon.
+- `assets/icons/vibraport.ico`: multi-resolution 16–256 px Windows executable icon.
 - `packaging/build_windows.ps1`: Windows-only build entrypoint. It creates `.venv-windows`, installs the pinned dependencies, runs the full test suite, builds the portable bundle, and checks required outputs.
 - Target portable artifact: `dist/Vibraport/Vibraport.exe`; the installer remains a later step after the portable artifact passes clean-Windows testing.
 - `pages/`: Data Overview, Signal Analysis, Signature Hole Analysis, attenuation/safe-zone analysis, monitoring, and PDF reporting.
