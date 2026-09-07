@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-08-31.
+Last updated: 2026-09-07.
 
 ## Product Direction
 - Vibraport remains a Streamlit-first vibration-analysis application; no framework rewrite is currently planned.
@@ -23,6 +23,7 @@ Last updated: 2026-08-31.
 - User-facing duration terms are **Short-term** and **Long-term**.
 - There is intentionally no measurement-location selector. Each result states the applied measurement basis and explains when the user must compare against another standard column for the actual sensor location.
 - DIN Short-term evaluates foundation/all-directions limits; DIN Long-term uses topmost-floor horizontal values and explains the separate floor-slab vertical values.
+- DIN compliance charts use linear 1-100 Hz frequency and 0-60 mm/s PPV axes, so each guideline segment is visually straight like the source figure. SNI and BS charts retain their logarithmic axes.
 - BS Short-term evaluates building-base transient limits. Below 4 Hz, Line 2 returns `REVIEW` because the standard requires a displacement check.
 - BS Long-term is a conservative 50% screening implementation. Exceeding it returns `REVIEW`, not automatic failure, because the reduction is condition-dependent.
 - Compliance statuses are `PASS`, `FAIL`, and `REVIEW`; charts and reports use the same evaluator.
@@ -36,13 +37,14 @@ Last updated: 2026-08-31.
 
 ## Verification Status
 - `python -m py_compile` passes for the modified application, page, and compliance modules.
-- `pytest -q` passes: **78 tests**.
+- `pytest -q` passes: **79 tests**.
 - `git diff --check` passes.
 - Browser-driven testing completed on 2026-08-31 using a synthetic waveform CSV: upload, Data Overview, all standard/duration selectors, measurement-basis explanations, Print Report selectors, and end-to-end PDF generation all worked.
 - No browser console errors appeared in the tested workflow.
 - Representative SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were raster-rendered and checked for overlap, clipping, chart readability, and table alignment.
+- Browser-driven testing on 2026-09-07 confirmed the DIN Short-term chart renders with linear frequency/PPV axes, straight guideline segments, correctly positioned labels, and no browser warnings or errors.
 
 ## Known Operational Notes
 - Start locally from the repository root with `venv/bin/streamlit run app.py`.
-- The working tree contains the completed compliance/report changes and memory-bank updates but has not been committed or pushed.
+- `main` contains the corrected linear DIN chart axes and regression coverage.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.

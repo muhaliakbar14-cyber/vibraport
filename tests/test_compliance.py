@@ -84,22 +84,38 @@ def test_overall_status_precedence():
 
 
 @pytest.mark.parametrize(
-    "standard, duration, category, expected_title, expected_ticks",
+    "standard, duration, category, expected_title, expected_ticks, expected_axis_types",
     [
-        ("sni_7571_2023", "short_term", 3, "SNI 7571:2023", (1, 5, 20, 100)),
-        ("din_4150_3_2016", "short_term", 2, "DIN 4150-3:2016 - Short-term", (1, 10, 50, 100)),
-        ("din_4150_3_2016", "long_term", 2, "DIN 4150-3:2016 - Long-term", (1, 10, 50, 100)),
-        ("bs_7385_2_1993", "short_term", 2, "BS 7385-2:1993 - Short-term", (1, 4, 15, 40, 100)),
-        ("bs_7385_2_1993", "long_term", 2, "BS 7385-2:1993 - Long-term", (1, 4, 15, 40, 100)),
+        ("sni_7571_2023", "short_term", 3, "SNI 7571:2023", (1, 5, 20, 100), ("log", "log")),
+        ("din_4150_3_2016", "short_term", 2, "DIN 4150-3:2016 - Short-term", (1, 10, 50, 100), ("linear", "linear")),
+        ("din_4150_3_2016", "long_term", 2, "DIN 4150-3:2016 - Long-term", (1, 10, 50, 100), ("linear", "linear")),
+        ("bs_7385_2_1993", "short_term", 2, "BS 7385-2:1993 - Short-term", (1, 4, 15, 40, 100), ("log", "log")),
+        ("bs_7385_2_1993", "long_term", 2, "BS 7385-2:1993 - Long-term", (1, 4, 15, 40, 100), ("log", "log")),
     ],
 )
-def test_chart_configuration(standard, duration, category, expected_title, expected_ticks):
+def test_chart_configuration(
+    standard, duration, category, expected_title, expected_ticks, expected_axis_types,
+):
     fig = build_compliance_chart([point()], standard, duration, category)
     assert fig.layout.title.text == expected_title
     assert tuple(fig.layout.xaxis.tickvals) == expected_ticks
+    assert (fig.layout.xaxis.type, fig.layout.yaxis.type) == expected_axis_types
     assert fig.layout.xaxis.minor.showgrid is False
     assert fig.layout.yaxis.minor.showgrid is False
     assert fig.layout.showlegend is False
+
+
+def test_din_short_term_chart_uses_linear_frequency_positions():
+    fig = build_compliance_chart([point()], "din_4150_3_2016", "short_term", 2)
+    assert tuple(fig.layout.xaxis.range) == (1, 100)
+    assert tuple(fig.layout.yaxis.range) == (0, 60)
+    annotations = {annotation.text: annotation for annotation in fig.layout.annotations}
+    assert annotations["1-10 Hz"].x == pytest.approx(5.5)
+    assert annotations["10-50 Hz"].x == pytest.approx(30)
+    assert annotations["50-100 Hz"].x == pytest.approx(75)
+    assert annotations["L2"].x == pytest.approx(95)
+    assert annotations["L2"].y == pytest.approx(19.5)
+    assert annotations["10-50 Hz"].y == pytest.approx(58)
 
 
 def test_din_long_term_chart_has_no_frequency_boundaries():

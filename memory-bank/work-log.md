@@ -119,3 +119,15 @@
   - Live Streamlit browser test passed for upload, SNI/DIN/BS selection, DIN/BS duration switching, explanations, Print Report options, and end-to-end PDF generation.
   - Browser console showed no errors in the tested workflow.
   - SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were generated, raster-rendered, and visually inspected successfully.
+
+## 2026-09-07 — DIN compliance chart linear axes
+- Changed the shared compliance chart builder so DIN 4150-3:2016 Short-term and Long-term use a linear 1-100 Hz frequency axis and a linear 0-60 mm/s PPV axis, matching the source figure's geometry.
+- Repositioned DIN frequency-band and category-line labels in linear axis coordinates. This removes the apparent curve previously caused by plotting linearly interpolated DIN limits on a logarithmic PPV axis.
+- Preserved the existing logarithmic axes for SNI 7571:2023 and BS 7385-2:1993 and did not change compliance limits, interpolation, or PASS/FAIL/REVIEW evaluation.
+- Added regression coverage for each standard's axis type, DIN's 1-100 range, and DIN annotation positions.
+- Validation:
+  - `python -m py_compile core/compliance/chart.py tests/test_compliance.py`: passed.
+  - `pytest -q tests/test_compliance.py`: **37 passed**.
+  - `pytest -q`: **79 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - Live Streamlit test with a synthetic waveform CSV confirmed linear DIN band widths, straight guideline segments, and correct label alignment; browser console showed no warnings or errors.
