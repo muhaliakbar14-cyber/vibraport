@@ -1,5 +1,7 @@
 """Boundary and integration tests for structural vibration standards."""
 
+import math
+
 import pytest
 
 from core.compliance import (
@@ -41,6 +43,17 @@ def test_din_short_term_below_range_requires_review():
     result = evaluate_point(point(freq=0.8), "din_4150_3_2016", "short_term", 2)
     assert result.status == "REVIEW"
     assert result.limit is None
+
+
+@pytest.mark.parametrize("frequency", [0, -1, math.nan])
+def test_missing_or_zero_frequency_explicitly_requires_review(frequency):
+    result = evaluate_point(
+        point(freq=frequency), "din_4150_3_2016", "long_term", 2
+    )
+
+    assert result.status == "REVIEW"
+    assert result.limit is None
+    assert "no PPV limit was guessed" in result.note
 
 
 @pytest.mark.parametrize("category, expected", [(1, 10), (2, 5), (3, 2.5)])

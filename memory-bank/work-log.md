@@ -131,3 +131,182 @@
   - `pytest -q`: **79 passed**.
   - `git diff --check`: passed before the memory-bank update.
   - Live Streamlit test with a synthetic waveform CSV confirmed linear DIN band widths, straight guideline segments, and correct label alignment; browser console showed no warnings or errors.
+
+## 2026-09-07 — Bargraph data model, overview, and timeline performance
+- Inspected the supplied 42991D7140916M.sis as measurement data. Confirmed
+  it is a Tellus bargraph record with 2,681 one-second intervals, three
+  velocity channels in mm/s, interval amplitude plus dominant frequency, no
+  RMS flag, and no raw acceleration waveform.
+- Added `core/monitoring.py` with:
+  - serializable normalized channel metadata;
+  - interval inference from the actual time axis;
+  - legacy metadata fallback;
+  - finite-value full-resolution statistics;
+  - peak-preserving min/max display downsampling.
+- Extended `core.waveform.parse_sis_file()` to expose
+  `Monitoring interval seconds` and `Bargraph channels`
+  without changing the existing dataframe columns, waveform path, or CSV
+  behavior.
+- Reworked `pages/monitoring.py`:
+  - data overview and quality/capability table;
+  - explicit Interval peak/RMS statistic labelling;
+  - cached Scattergl timelines instead of one SVG bar per interval;
+  - full/15-minute/60-minute/custom view ranges;
+  - capped visible alert markers and wheel-to-zoom disabled for normal page
+    scrolling;
+  - full-resolution maximum, frequency-at-maximum, mean, median, P95, P99,
+    invalid values, and alert counts;
+  - server-side frequency histogram aggregation;
+  - user-facing distinction between operational thresholds and compliance.
+- Added `tests/test_monitoring.py` with nine tests covering
+  interval/statistic semantics, frequency availability, compatibility
+  filtering, statistics, and extrema-preserving point caps.
+- Validation:
+  - Python compilation passed for `app.py`, `core/*.py`,
+    `core/compliance/*.py`, `pages/*.py`, and the new tests.
+  - `pytest -q tests/test_monitoring.py`: **9 passed**.
+  - `pytest -q`: **88 passed**.
+  - `git diff --check`: passed before and after implementation.
+  - The supplied Tellus file parsed as three
+    Velocity · Interval peak · mm/s channels with one-second intervals.
+  - Live Streamlit browser validation passed with the supplied file.
+  - A temporary synthetic two-hour, seven-channel, one-second SIS file
+    rendered 7,200 intervals/channel as 12,593 peak-preserving line points
+    across all channels rather than 50,400 SVG bars.
+  - Switching that recording to the 15-minute view completed in about
+    0.84 seconds. Scrolling and charts were visually inspected; browser logs
+    contained no warnings or errors.
+
+## 2026-09-07 — Monitoring spacing, events, and grouped navigation
+- Increased monitoring subplot height and normalized vertical spacing so each
+  channel has a clear visual gap from its neighbors. Kept wheel-to-zoom
+  disabled so scrolling over the chart continues to move the page.
+- Extended `core/monitoring.py` with full-resolution operational
+  event detection:
+  - yellow-threshold start;
+  - red classification when an event reaches the red threshold;
+  - percentage-based release hysteresis;
+  - configurable quiet-gap bridging;
+  - minimum-duration filtering;
+  - peak, peak time, frequency-at-peak, duration, and interval counts.
+- Added `pages/monitoring_events.py` with event grouping controls,
+  summary metrics, a detailed event table, CSV export, and a selectable
+  event-detail chart with threshold lines and highlighted event duration.
+- Reworked `app.py` navigation into the requested top-level
+  Waveform, Bargraph Monitoring, and Print Report workspaces. Bargraph
+  Monitoring now exposes Data Overview and Events & Thresholds as separate
+  destinations.
+- Expanded `tests/test_monitoring.py` from 9 to 17 tests, covering
+  event grouping, gap tolerance, hysteresis behavior, minimum duration,
+  red/yellow classification, invalid settings, and multi-channel ordering.
+- Validation:
+  - Python compilation passed for all application/core/page modules.
+  - `pytest -q tests/test_monitoring.py`: **17 passed**.
+  - `pytest -q`: **96 passed**.
+  - `git diff --check`: passed.
+  - Live Streamlit testing with the supplied Tellus file verified the grouped
+    menu, both monitoring views, increased graph separation, 18 default
+    events, gap-tolerance regrouping, event selection/detail updates, and CSV
+    export availability.
+  - Visual inspection passed and browser logs contained no warnings or errors.
+
+## 2026-09-08 — Frequency-aware bargraph PPV Compliance
+- Added PPV channel eligibility and full-resolution interval assessment to
+  `core/monitoring.py`. Only Velocity · Interval peak · mm/s channels are
+  eligible; RMS and other quantities/units are preserved and excluded.
+- Reused `core/compliance/evaluator.py` for every interval. Tightened the
+  shared evaluator so missing, non-finite, and zero dominant frequency return
+  an explicit `REVIEW` note stating that no PPV limit was guessed.
+- Added `pages/monitoring_compliance.py` with channel eligibility disclosure;
+  shared SNI/DIN/BS controls; full-resolution summaries; one critical chart
+  point per channel; capped result display; complete CSV export; and an
+  engineering-screening disclaimer.
+- Added PPV Compliance to the Bargraph Monitoring submenu and explicit route in
+  `app.py`.
+- Expanded compliance and monitoring tests for eligibility, shared limit use,
+  interval-level statuses/utilization, ineligible RMS/non-velocity channels,
+  and missing/zero/non-finite frequency.
+- Validation:
+  - Python compilation passed for the touched application/core/page modules.
+  - Targeted compliance + monitoring suite: **64 passed**.
+  - Full `pytest -q`: **106 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - The supplied Tellus file produced 8,043 interval-channel assessments. SNI
+    and DIN default categories passed; BS Short-term produced 2,859 expected
+    `REVIEW` results below 4 Hz and no guessed limits.
+  - Live browser testing verified SNI, DIN Short-/Long-term, BS review handling,
+    page layout, chart/table rendering, and CSV availability. Browser and
+    Streamlit logs contained no warnings or errors.
+
+## 2026-09-08 — Responsive Monitoring Trends
+- Added reusable full-resolution time-bucket aggregation to
+  `core/monitoring.py`. Each channel bucket contains start/end/midpoint,
+  interval and valid counts, maximum, mean, median, P95, P99, and dominant
+  frequency at the actual maximum.
+- Added a fast native-interval path so one-second records remain one-to-one
+  without repeatedly running percentile calculations on single-value buckets.
+- Added `pages/monitoring_trends.py` with channel selection, native/preset/custom
+  aggregation windows, Maximum/P95/P99/Mean/Median chart selection, separated
+  stacked WebGL plots, full-recording summaries, capped aggregated tables, and
+  complete aggregated CSV export.
+- Added Trends to the Bargraph Monitoring submenu and explicit `app.py` route.
+- Added seven aggregation tests covering bucket boundaries, original-value
+  statistics, peak-frequency association, invalid values, native gaps, invalid
+  bucket sizes, and time/amplitude length mismatches.
+- Validation:
+  - Python compilation passed for all application/core/page modules.
+  - `pytest -q tests/test_monitoring.py`: **31 passed**.
+  - Full `pytest -q`: **113 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - The supplied Tellus file aggregated from 8,043 values to 135 one-minute
+    channel buckets in about 0.025 seconds.
+  - A synthetic two-hour/seven-channel record aggregated 50,400 values into
+    840 one-minute buckets in about 0.14 seconds; native preparation completed
+    in about 0.51 seconds before display downsampling.
+  - Live browser testing verified the one-minute Maximum, five-minute P95,
+    channel removal, custom 600-second window, empty-selection guard, chart
+    spacing, tables, and export control. Browser and Streamlit logs were clean.
+
+## 2026-09-08 — Monitoring trend channel comparison controls
+- Kept separated channel panels as the default and added a
+  `Synchronize Y-axis between channels` option for compatible selections.
+- Added a `Combined overlay` layout for channels with the same normalized
+  quantity and unit. Each channel remains selectable in the existing control
+  and can also be hidden or shown through the Plotly legend.
+- Prevented synchronized/combined layouts for mixed quantities or units.
+- Added focused tests for compatibility gating, linked stacked axes, combined
+  trace labels, legend availability, and the shared unit label.
+- Validation:
+  - `pytest -q tests/test_monitoring.py`: **34 passed**.
+  - Full `pytest -q`: **116 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - Live browser testing with the supplied Tellus file verified all three
+    synchronized panels use identical 0-2 mm/s tick ranges, the combined view
+    renders three channel traces, and clicking a legend entry hides its trace.
+    Browser logs contained no warnings or errors.
+
+## 2026-09-08 — Configurable bargraph monitoring PDF report
+- Added `pages/monitoring_report.py` and routed active bargraph files from the
+  existing Print Report menu to it. The existing waveform report remains the
+  active path for waveform recordings.
+- Added independent section selection for Monitoring Overview, Aggregated
+  Trend, Operational Events, and PPV Compliance; the cover is always included.
+- Added trend aggregation/statistic/layout options, explicit event threshold
+  and grouping inputs, and the shared SNI/DIN/BS compliance selectors.
+- Built print-oriented overview/statistics tables, synchronized stacked or
+  compatible combined trend charts, capped chronological event registers, and
+  full-resolution compliance summaries with the most critical point per
+  channel. User alarms remain labelled operational and RMS/VDV is not inferred.
+- Added `tests/test_monitoring_report.py` covering selective section inclusion,
+  all-section PDF smoke generation, and empty-section validation.
+- Validation:
+  - Python compilation passed for application, core, page, and test modules.
+  - `pytest -q tests/test_monitoring_report.py`: **3 passed**.
+  - Full `pytest -q`: **119 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - Live UI testing with the supplied Tellus file verified the Print Report
+    route, defaults, Events opt-in, Combined overlay selection, successful PDF
+    generation, and download availability. Browser logs were clean.
+  - Generated a five-page all-sections DIN Short-term sample. Poppler rendering
+    and visual inspection verified every page after fixing table-page frame
+    layering and event-peak formatting; no clipping or overlap remained.

@@ -13,6 +13,7 @@ from config import (
     CHANNEL_RENAME, ACCEL_RENAME, DISP_RENAME,
     DEFAULT_SAMPLING_RATE
 )
+from core.monitoring import build_bargraph_channel_metadata, infer_monitoring_interval
 
 def parse_file(file_bytes: bytes) -> tuple:
     """
@@ -147,6 +148,13 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
         'is_waveform':     r['is_waveform'],
         'Bargraph end time': r.get('bargraph_end_time', (0, 0, 0)),
     }
+
+    if not r['is_waveform']:
+        interval_seconds = infer_monitoring_interval(
+            r.get('time_axis', []), fallback=r.get('sampling_rate')
+        )
+        metadata['Monitoring interval seconds'] = interval_seconds
+        metadata['Bargraph channels'] = build_bargraph_channel_metadata(r)
 
     sampling_rate = r['sampling_rate']
     time_axis     = r['time_axis']

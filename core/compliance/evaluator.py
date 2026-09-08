@@ -1,5 +1,6 @@
 """Compliance evaluation independent of Streamlit and report rendering."""
 
+import math
 from dataclasses import dataclass
 
 from .standards import LONG_TERM, category_by_id, get_standard, limit_at_frequency
@@ -24,6 +25,17 @@ def evaluate_point(
     ppv = float(point["ppv"])
     freq = float(point["freq"])
     channel = str(point.get("channel", "Channel"))
+
+    if not math.isfinite(freq) or freq <= 0:
+        return ComplianceResult(
+            channel,
+            ppv,
+            freq,
+            None,
+            "REVIEW",
+            "Dominant frequency is missing or zero; no PPV limit was guessed.",
+        )
+
     limit = limit_at_frequency(standard_id, assessment, category_id, freq)
 
     if limit is None:

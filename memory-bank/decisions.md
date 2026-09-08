@@ -100,3 +100,99 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
 ## 2026-08-31 — Keep the structured memory bank
 - Decision: retain the existing focused files instead of adding a single `PROJECT_CONTEXT.md`.
 - Why: `current-state`, `decisions`, `work-log`, `next-steps`, and `handoff-latest` serve different update cadences. The earlier problem was stale content, not excessive fragmentation.
+
+## 2026-09-07 — Bargraph metrics and scalable display boundaries
+- Decision: normalize SIS bargraph channels above the existing parsers and
+  preserve the instrument statistic explicitly. Unflagged amplitudes are
+  interval peaks; an RMS label is allowed only when the SIS metadata carries
+  the RMS flag. VDV is not calculated from peak or interval-RMS bars.
+- Why: bargraph records contain interval summaries rather than the original
+  high-rate acceleration waveform. Inventing RMS/VDV from PPV and dominant
+  frequency would produce plausible-looking but non-compliant values.
+- Decision: use peak-preserving min/max downsampling and WebGL lines for the
+  displayed timeline, while keeping all engineering calculations on the
+  complete arrays.
+- Why: a two-hour, one-second, seven-channel recording creates 50,400 SVG bars
+  in the former implementation. Display reduction solves browser jank without
+  changing maxima, percentiles, alarm counts, or future compliance results.
+- Decision: keep yellow/red thresholds as operational alarms and state that
+  they are not regulatory limits.
+- Why: regulatory PPV evaluation requires an explicit standard, category, and
+  frequency-aware shared evaluator; arbitrary user thresholds must not imply
+  certification.
+
+## 2026-09-07 — Bargraph operational event semantics and navigation
+- Decision: group monitoring events from full-resolution yellow-threshold
+  crossings. Red is the highest severity reached within the grouped event;
+  hysteresis controls release, quiet-gap tolerance bridges brief drops, and
+  minimum duration filters short events.
+- Why: counting every over-threshold bar as an independent event exaggerates
+  sustained activity and produces an unusable review list. The grouping
+  controls make the operational definition explicit and reproducible.
+- Decision: introduce the three requested top-level workspaces once both
+  Bargraph Data Overview and Events & Thresholds were live.
+- Why: nested navigation now reflects the product domains without presenting a
+  menu containing only one monitoring destination.
+
+## 2026-09-08 — Full-resolution bargraph PPV compliance
+- Decision: assess only normalized Velocity · Interval peak · mm/s channels as
+  bargraph PPV. RMS, acceleration, pressure, and incompatible units are shown
+  as ineligible rather than converted or relabelled.
+- Why: the recorded statistic and physical quantity must match PPV semantics;
+  fabricating a conversion would make the result look more authoritative than
+  the stored measurement supports.
+- Decision: pass each interval's own stored dominant frequency to the shared
+  `core/compliance/` evaluator. Missing, non-finite, or zero frequency returns
+  `REVIEW`, even for DIN Long-term, and no substitute frequency or limit is
+  guessed.
+- Why: this preserves one standards engine and makes incomplete measurement
+  evidence visible instead of silently turning it into a pass/fail result.
+- Decision: keep counts, channel summaries, and CSV export full-resolution,
+  but chart only the worst limit-utilization point per channel and cap the
+  visible interval table at 2,000 rows.
+- Why: the complete engineering result remains available while avoiding tens of
+  thousands of browser table rows and chart markers for long recordings.
+
+## 2026-09-08 — Monitoring trend aggregation semantics
+- Decision: calculate time-bucket maximum, mean, median, P95, and P99 from the
+  original stored interval values. Preserve the stored channel statistic in
+  every result and do not describe bucket percentiles as waveform RMS or VDV.
+- Why: a percentile of interval peaks or stored interval RMS values is useful
+  for monitoring trends but is not interchangeable with a metric reconstructed
+  from high-rate acceleration history.
+- Decision: align buckets to the first finite elapsed-time value, retain a
+  native one-record-per-interval mode, and report the dominant frequency at the
+  actual maximum within each aggregated bucket.
+- Why: this makes bucket definitions reproducible and preserves the measured
+  frequency associated with the worst stored interval in each window.
+- Decision: aggregate on the server and use peak-preserving downsampling only
+  when a long trend series is sent to the browser. Full-recording summaries and
+  exported bucket data are never calculated from display-reduced points.
+- Why: this retains engineering fidelity while preventing large monitoring
+  records from recreating the browser-scrolling lag that motivated the earlier
+  timeline redesign.
+
+## 2026-09-08 — Monitoring trend comparison layouts
+- Decision: keep separated channel panels as the default, add an optional
+  synchronized Y-axis for direct amplitude comparison, and offer a combined
+  overlay with Plotly legend toggles only when every selected channel has the
+  same normalized quantity and unit.
+- Why: separated panels remain clearer when traces overlap, while synchronized
+  scales expose relative channel magnitude and the overlay supports focused
+  comparison. Blocking shared axes for mixed units prevents visually plausible
+  but physically misleading comparisons.
+
+## 2026-09-08 — Configurable bargraph monitoring reports
+- Decision: route an active bargraph recording from the existing Print Report
+  menu to a dedicated builder, leaving the established waveform builder intact.
+  The cover is fixed, while overview, trend, operational-event, and PPV-
+  compliance sections are independently selectable.
+- Why: waveform and bargraph records have different stored metrics and report
+  semantics. Separate builders avoid forcing interval summaries through
+  waveform assumptions while keeping one familiar report entry point.
+- Decision: reports summarize full-resolution calculations and include compact,
+  print-oriented charts rather than interval-level tables. Event thresholds and
+  grouping settings are printed explicitly; compliance keeps the shared
+  evaluator and engineering-screening disclaimer.
+- Why: a formal report must remain reproducible and responsive without implying
+  that user alarms are regulations or that peak bars are RMS/VDV.

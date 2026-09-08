@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-07.
+Last updated: 2026-09-08.
 
 ## Product Direction
 - Vibraport remains a Streamlit-first vibration-analysis application; no framework rewrite is currently planned.
@@ -9,10 +9,59 @@ Last updated: 2026-09-07.
 
 ## Live Application
 - Entrypoint: `app.py`.
-- Six explicitly routed pages: Data Overview, Signal Analysis, Signature Hole Analysis, Attenuation & Safe Zone, Bargraph Monitoring, and Print Report.
+- Three top-level workspaces are explicitly routed: Waveform, Bargraph
+  Monitoring, and Print Report. Waveform contains Data Overview, Signal
+  Analysis, Signature Hole Analysis, and Attenuation & Safe Zone. Bargraph
+  Monitoring contains Data Overview, Trends, Events & Thresholds, and PPV
+  Compliance.
 - Streamlit's automatic multipage navigation is disabled; every `pages/*.py` module must be imported and routed explicitly in `app.py`.
 - Supported inputs: Vibracord `.sis` and waveform `.csv` files, including dual-geophone/Block 2 data and bargraph `M.sis` records.
 - Active virtual environment in this checkout: `venv/`.
+
+## Bargraph Monitoring
+- SIS bargraph parsing now adds normalized channel metadata: quantity,
+  statistic, unit, axis, transducer, interval count, dominant-frequency
+  availability, virtual-channel state, and over-range state.
+- Unflagged bargraph amplitudes are explicitly treated as
+  instrument-reported **Interval peak** values; Tellus RMS flags are preserved
+  as RMS. Vibraport does not infer RMS or VDV from peak-velocity bars.
+- The monitoring Data Overview shows duration, interval, channel capabilities,
+  data-quality warnings, full-resolution maximum/mean/median/P95/P99 values,
+  and frequency at the maximum.
+- The long timeline uses cached WebGL lines with peak-preserving min/max
+  downsampling, range selection, and capped alert markers. Operational
+  threshold counts and all statistics remain full-resolution.
+- Frequency distributions are server-aggregated before plotting rather than
+  sending every interval to the browser.
+- Operational yellow/red thresholds are explicitly labelled as user-defined
+  screening alarms, not regulatory compliance limits.
+- Monitoring channel plots use taller subplot domains and larger vertical gaps
+  so adjacent channel titles, limits, and traces remain visually distinct.
+- Events & Thresholds groups full-resolution exceedances using configurable
+  minimum duration, release hysteresis, and quiet-gap tolerance. It provides
+  yellow/red event classification, duration/peak/frequency summaries, CSV
+  export, and a selectable event-detail chart.
+- PPV Compliance evaluates every finite interval for Velocity · Interval peak ·
+  mm/s channels against the selected shared SNI/DIN/BS definition using that
+  interval's stored dominant frequency. RMS, acceleration, pressure, and
+  incompatible units remain explicitly ineligible.
+- Missing, non-finite, or zero dominant frequency returns `REVIEW` with no
+  guessed limit, including frequency-independent-looking assessment modes.
+- Compliance counts, channel summaries, and CSV export use all intervals. The
+  Plotly chart receives only the worst limit-utilization point per channel and
+  the on-page result table is capped at 2,000 rows for browser responsiveness.
+- Monitoring Trends aggregates every original stored interval into selectable
+  native, 1-minute, 5-minute, 15-minute, 1-hour, or custom elapsed-time
+  windows. Each bucket exposes maximum, mean, median, P95, P99, counts, and
+  dominant frequency at the maximum.
+- Trends supports channel selection and defaults to separated WebGL panels.
+  When all selected channels have the same quantity and unit, the panels can
+  synchronize their Y-axes or switch to a combined overlay with legend
+  hide/show controls. Mixed-unit selections cannot share an axis. Long native
+  views use peak-preserving display reduction only; aggregation, full-recording
+  summaries, and CSV export always use the original arrays. Bucket P95/P99 are
+  explicitly described as statistics of the stored interval metric, not raw
+  waveform RMS or VDV.
 
 ## Compliance Assessment
 - Data Overview and Print Report share the generic `core/compliance/` engine.
@@ -27,9 +76,19 @@ Last updated: 2026-09-07.
 - BS Short-term evaluates building-base transient limits. Below 4 Hz, Line 2 returns `REVIEW` because the standard requires a displacement check.
 - BS Long-term is a conservative 50% screening implementation. Exceeding it returns `REVIEW`, not automatic failure, because the reduction is condition-dependent.
 - Compliance statuses are `PASS`, `FAIL`, and `REVIEW`; charts and reports use the same evaluator.
+- Bargraph PPV Compliance also calls this evaluator; there is no monitoring-only
+  copy of any standard limit curve.
 
 ## Reporting and Presentation
 - `pages/report.py` generates the active professional PDF report.
+- Print Report dispatches bargraph files to `pages/monitoring_report.py` instead
+  of blocking them as non-waveform input. The monitoring report always includes
+  a cover and lets users independently include Monitoring Overview, Aggregated
+  Trend, Operational Events, and PPV Compliance.
+- Trend reports expose aggregation/statistic/layout controls. Event reports use
+  explicit operational thresholds and grouping settings. Compliance reports
+  use the shared SNI/DIN/BS selectors and evaluate every eligible stored
+  interval before summarizing the worst point per channel.
 - Plotly image export is bounded by a timeout so Kaleido cannot leave report generation spinning indefinitely.
 - PDF reports include source Notes 1-3 in the top-right header, shared waveform scales, professional Inter fonts, Record Values/PVS, and the selected compliance chart plus measurement-basis explanation.
 - CSV report generation calculates a fallback dominant frequency when device metadata does not provide one.
@@ -37,14 +96,44 @@ Last updated: 2026-09-07.
 
 ## Verification Status
 - `python -m py_compile` passes for the modified application, page, and compliance modules.
-- `pytest -q` passes: **79 tests**.
+- `pytest -q` passes: **119 tests**.
 - `git diff --check` passes.
 - Browser-driven testing completed on 2026-08-31 using a synthetic waveform CSV: upload, Data Overview, all standard/duration selectors, measurement-basis explanations, Print Report selectors, and end-to-end PDF generation all worked.
 - No browser console errors appeared in the tested workflow.
 - Representative SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were raster-rendered and checked for overlap, clipping, chart readability, and table alignment.
 - Browser-driven testing on 2026-09-07 confirmed the DIN Short-term chart renders with linear frequency/PPV axes, straight guideline segments, correctly positioned labels, and no browser warnings or errors.
+- Browser-driven monitoring testing on 2026-09-07 passed with the supplied
+  Tellus bargraph file and a synthetic two-hour, seven-channel, one-second
+  recording. The full recording rendered with 12,593 peak-preserving line
+  points instead of 50,400 SVG bars; the 15-minute range update completed in
+  about 0.84 seconds and browser logs contained no warnings or errors.
+- A second live monitoring pass verified the increased channel spacing, grouped
+  navigation, 18 default events from the supplied Tellus file, quiet-gap
+  regrouping, event selection/detail updates, and CSV-export availability.
+  Browser logs again contained no warnings or errors.
+- Browser-driven PPV Compliance testing on 2026-09-08 used the supplied Tellus
+  bargraph file and verified 8,043 full-resolution assessments, SNI, DIN
+  Short-/Long-term, BS below-4-Hz `REVIEW` handling, the critical-point chart,
+  table cap, and CSV export. Browser and Streamlit logs were clean.
+- Browser-driven Trends testing on 2026-09-08 used the supplied Tellus file and
+  verified default one-minute maximums, five-minute P95, channel selection,
+  custom 600-second windows, the empty-selection guard, stacked chart spacing,
+  summary/data tables, and CSV availability. Browser and Streamlit logs were
+  clean.
+- A follow-up Trends pass verified synchronized stacked Y-axes with identical
+  tick ranges and the same-unit combined overlay with all three channel legend
+  toggles. Browser logs contained no warnings or errors.
+- Browser-driven monitoring-report testing used the supplied Tellus file and
+  verified Print Report routing, selectable sections, conditional trend/event/
+  compliance controls, combined trend layout, complete PDF generation, and the
+  download control. Browser logs were clean.
+- A representative five-page all-sections report was raster-rendered and
+  visually checked for headers/footers, page numbering, chart clarity, table
+  fit, clipping, and section transitions.
 
 ## Known Operational Notes
 - Start locally from the repository root with `venv/bin/streamlit run app.py`.
 - `main` contains the corrected linear DIN chart axes and regression coverage.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.
+- The next engineering task is domain review of DIN/BS wording and screening
+  policy, followed by broader bargraph fixture validation across equipment types.
