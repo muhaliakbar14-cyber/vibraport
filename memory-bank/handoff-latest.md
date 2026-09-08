@@ -1,7 +1,8 @@
-# Latest Handoff (2026-09-07)
+# Latest Handoff (2026-09-08)
 
 ## Completed
-- Vibraport remains a six-page Streamlit application with `.sis`/`.csv`, dual-block waveform, SHA, attenuation, monitoring, and PDF-report workflows.
+- Vibraport remains a Streamlit application with `.sis`/`.csv`, dual-block
+  waveform, SHA, attenuation, monitoring, and PDF-report workflows.
 - Data Overview and Print Report now share `core/compliance/`.
 - Compliance choices:
   - SNI 7571:2023 — Short-term.
@@ -10,22 +11,65 @@
 - No measurement-location selector was added. The UI and PDF state the applied basis and explain alternate standard columns/checks.
 - The report includes Notes 1-3 in the header, Inter fonts, shared waveform scales, Record Values/PVS, and the selected standard chart.
 - CSV frequency fallback and bounded Kaleido chart export are active.
-- DIN Short-term and Long-term compliance charts now use linear 1-100 Hz frequency and 0-60 mm/s PPV axes. DIN band/category annotations use linear coordinates and every guideline segment is visually straight; SNI and BS remain logarithmic.
+- DIN Short-term and Long-term compliance charts now use linear 1-100 Hz frequency and 0-60 mm/s PPV axes. DIN frequency-band and category-label annotations use linear coordinates and every guideline segment is visually straight; SNI and BS remain logarithmic.
+- Bargraph Monitoring now has a normalized data-capability layer and a stronger
+  Data Overview. Channels expose quantity/statistic/unit/transducer/frequency
+  and quality flags; unflagged SIS bars are labelled Interval peak rather than
+  RMS.
+- The monitoring timeline now uses cached, peak-preserving WebGL series,
+  selectable full/15-minute/60-minute/custom ranges, capped alert markers, and
+  server-aggregated frequency histograms. Full-resolution statistics and alarm
+  counts are kept separate from display downsampling.
+- RMS and VDV remain deliberately unavailable for peak-velocity bargraph files.
+  User thresholds are explicitly operational alarms rather than compliance.
+- Channel plots now have taller domains and larger vertical gaps so adjacent
+  channel graphs are visually distinct.
+- Navigation is grouped into Waveform, Bargraph Monitoring, and Print Report.
+  Bargraph Monitoring contains Data Overview, Trends, Events & Thresholds, and
+  PPV Compliance.
+- The full-resolution event engine supports minimum duration, release
+  hysteresis, and quiet-gap tolerance. The new event view provides summary
+  metrics, a detailed table, CSV export, and jump-to-event charts.
+- PPV Compliance evaluates every finite Velocity · Interval peak · mm/s bar at
+  full resolution with the shared SNI/DIN/BS engine and the interval's stored
+  dominant frequency. Missing/zero frequency is explicit `REVIEW`; RMS and
+  non-velocity channels are not reinterpreted.
+- The PPV page includes eligibility disclosure, standard/assessment/category
+  controls, overall and per-channel counts, the most critical valid-frequency
+  point per channel, capped interval display, and full CSV export.
+- Monitoring Trends provides channel selection and native/preset/custom time
+  buckets. Maximum, mean, median, P95, P99, valid counts, and frequency at the
+  bucket maximum are calculated from original intervals. Stacked WebGL charts
+  may synchronize Y-axes, and matching-unit channels may use a combined overlay
+  with legend toggles. Mixed-unit channels remain separated. Plots may reduce
+  displayed points, while summaries and CSV data remain full-resolution.
+- Print Report now accepts active bargraph recordings. A dedicated configurable
+  builder always adds a cover and optionally includes Monitoring Overview,
+  Aggregated Trend, Operational Events, and PPV Compliance. The waveform report
+  path remains unchanged.
+- Monitoring PDFs print their trend/event/compliance settings, use the existing
+  full-resolution domain helpers, and preserve shared SNI/DIN/BS evaluation.
 
 ## Verification
 - `git diff --check`: passed.
 - Python compilation: passed.
-- `pytest -q`: **78 passed**.
+- `pytest -q` on `main`: **119 passed**.
+- `pytest -q` on the synchronized `windows-packaging` branch: **134 passed**.
 - Live browser test: upload, standards/durations, Overview, Print Report, and PDF generation passed with no console errors.
 - Five representative PDF variants were rendered and visually inspected successfully.
-- Current full suite: **94 passed**.
+- The Windows launcher and packaging tests also pass with the synchronized
+  application suite.
 - Live Streamlit test from `/home/bolay/vibraport` confirmed the corrected DIN Short-term proportions and label alignment with no browser warnings/errors.
 
-## Branch State
-- The compliance/report work is committed and pushed on `main` at `c468136`.
+## Windows Packaging State
+- The monitoring/report work is committed and pushed on `main` at `e023c0e`.
 - Active branch: `windows-packaging`.
 - The current Windows tray/single-instance/branding implementation is committed and pushed at `483a290` (`Add Windows tray lifecycle and Vibraport branding`).
-- The branch contains the launcher, pinned Windows manifest, PyInstaller spec, PowerShell build script, launcher/packaging tests, `.venv-windows` ignore rule, and Windows-track memory-bank updates. It does not change analysis, parsing, compliance, UI-page, or report behavior.
+- The branch contains the launcher, pinned Windows manifest, PyInstaller spec,
+  PowerShell build script, launcher/packaging tests, `.venv-windows` ignore
+  rule, and synchronized main-application code.
+- Locally generated `output/` and `tmp/` report-QA artifacts remain on disk but
+  are ignored so customer metadata is not published with source code.
 
 ## Windows Packaging Step 1
 - Added an in-process Streamlit launcher suitable for a future PyInstaller executable.
@@ -57,14 +101,58 @@
 - The user pulled and rebuilt commit `483a290` on Windows. The tray appeared, closing the browser left Vibraport running as intended, a second executable launch reused the existing instance instead of opening another port, and **Exit Vibraport** stopped the process after a short graceful-shutdown delay.
 - A DLL-load error seen during testing came from launching the intermediate executable under `build\\vibraport_windows`; launching `dist\\Vibraport\\Vibraport.exe` resolved it. The complete `dist\\Vibraport` folder is the portable artifact and must stay together.
 
+- Live DIN UI test passed with a synthetic waveform CSV: the frequency regions have linear widths, all guideline segments are straight, and no browser warnings/errors appeared.
+- Live monitoring UI tests passed with the supplied Tellus M.sis file and a
+  synthetic two-hour/seven-channel/one-second file. The 15-minute range
+  interaction completed in about 0.84 seconds; visual inspection passed and
+  browser logs showed no warnings or errors.
+- A follow-up browser pass verified the increased graph spacing, grouped
+  navigation, default detection of 18 events from the supplied file,
+  quiet-gap regrouping, event selection/detail rendering, and CSV export
+  availability. Browser logs contained no warnings or errors.
+- Live PPV Compliance testing with the supplied Tellus file verified 8,043
+  interval-channel results, SNI, DIN Short-/Long-term, BS below-4-Hz review,
+  chart/table rendering, and CSV export. Browser and Streamlit logs were clean.
+- Live Trends testing with the supplied Tellus file verified one-minute
+  Maximum, five-minute P95, channel selection, custom 600-second aggregation,
+  empty-selection handling, chart/table layout, and CSV availability. Browser
+  and Streamlit logs were clean.
+- A follow-up live Trends pass verified identical Y tick ranges across all
+  synchronized stacked panels and a combined three-channel overlay whose
+  legend entries hide/show their traces. Browser logs were clean.
+- Live monitoring-report testing verified bargraph Print Report routing,
+  section selection, conditional options, all-section PDF generation, and the
+  download control with the supplied Tellus file. Browser logs were clean.
+- The five-page sample report was raster-rendered. Headers, footers, page
+  numbers, trend/compliance charts, overview/event tables, and section
+  transitions passed visual inspection after correcting footer/header layering
+  and event-peak formatting.
+
+## Change Scope
+- Monitoring implementation/test files: `core/monitoring.py`,
+  `core/waveform.py`, `pages/monitoring.py`, and
+  `pages/monitoring_trends.py`, `pages/monitoring_events.py`,
+  `pages/monitoring_compliance.py`, `pages/monitoring_report.py`, `app.py`,
+  `tests/test_monitoring.py`, and `tests/test_monitoring_report.py`.
+- Shared missing-frequency behavior and regression coverage also touch
+  `core/compliance/evaluator.py` and `tests/test_compliance.py`.
+- Updated `architecture`, `current-state`,
+  `decisions`, `handoff-latest`, `next-steps`,
+  and `work-log`.
+
 ## Immediate Next Task
-1. Have the user confirm the revised DIN axis proportions and straight guideline segments.
-2. Continue with the next user-selected main-application improvement before returning to installer work.
-3. Keep the scoped DIN chart/test change separate from Windows packaging changes when the user later requests a commit.
-4. The already validated ZIP remains usable; Inno Setup remains an optional later distribution task.
+1. Ask a vibration engineer to review DIN/BS category wording, measurement
+   explanations, and the conservative BS Long-term screening policy.
+2. Validate normalized monitoring/report behavior against representative Gaia,
+   FX, and DX bargraph fixtures without committing customer data.
+3. Keep the already validated Windows packaging/installer track separate.
 
 ## Guardrails for the Next Session
 - Read `memory-bank/current-state.md`, `decisions.md`, `next-steps.md`, and this file first.
 - Keep compliance logic shared; do not reintroduce page-specific copies.
 - Treat standards output as engineering support, not certification, until domain-reviewed against worked examples.
 - Re-check that every live `pages/*.py` module is explicitly wired in `app.py`.
+- Never compute monitoring statistics or compliance from display-downsampled
+  arrays.
+- Never label peak bars as RMS or derive VDV without a compatible stored
+  metric/time history.

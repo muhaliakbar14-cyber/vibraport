@@ -9,7 +9,18 @@ from io import StringIO
 from pathlib import Path
 
 from core.waveform import parse_sis_file, parse_file as _core_parse_file
-from pages import report, ppv_analysis, monitoring, signal_analysis, sha, overview
+from pages import (
+    monitoring,
+    monitoring_compliance,
+    monitoring_events,
+    monitoring_report,
+    monitoring_trends,
+    overview,
+    ppv_analysis,
+    report,
+    sha,
+    signal_analysis,
+)
 
 APP_ICON = Path(__file__).resolve().parent / "assets" / "icons" / "vibraport-logo.png"
 st.set_page_config(page_title="Vibraport", page_icon=str(APP_ICON), layout="wide")
@@ -141,17 +152,31 @@ with st.sidebar:
 
     st.divider()
 
-    page = st.radio(
-        "Navigate",
-        [
-            "📊 Data Overview",
-            "📡 Signal Analysis",
-            "💥 Signature Hole Analysis",
-            "📈 Attenuation & Safe Zone",
-            "📉 Bargraph Monitoring",
-            "🖨️ Print Report",
-        ],
+    workspace = st.radio(
+        "Main menu",
+        ["〽️ Waveform", "📊 Bargraph Monitoring", "🖨️ Print Report"],
+        key="main_workspace",
     )
+    if workspace == "〽️ Waveform":
+        page = st.radio(
+            "Waveform",
+            [
+                "📊 Data Overview",
+                "📡 Signal Analysis",
+                "💥 Signature Hole Analysis",
+                "📈 Attenuation & Safe Zone",
+            ],
+            key="waveform_page",
+        )
+    elif workspace == "📊 Bargraph Monitoring":
+        monitoring_section = st.radio(
+            "Bargraph Monitoring",
+            ["Data Overview", "Trends", "Events & Thresholds", "PPV Compliance"],
+            key="monitoring_section",
+        )
+        page = f"📉 Bargraph Monitoring — {monitoring_section}"
+    else:
+        page = "🖨️ Print Report"
 
 # calculate_frequency and make_chart (previously defined here) were only
 # used by the inline Data Overview implementation below — removed along
@@ -188,7 +213,7 @@ if not uploaded_file:
         st.markdown("Regress PPV against scaled distance across multiple blast events, then predict safe distance, max charge, or expected PPV — including SNI 7571 building-class compliance tables.")
     with col3:
         st.markdown("### 📉 Bargraph Monitoring")
-        st.markdown("View long-term bargraph recordings (files ending in **M** before `.sis`) with configurable alert thresholds, exceedance markers, and frequency distribution.")
+        st.markdown("View long-term bargraph recordings (files ending in **M** before `.sis`) with responsive timelines and trends, grouped operational events, and frequency-aware PPV compliance.")
         st.markdown("### 🖨️ Print Report")
         st.markdown("Generate a formatted PDF-ready report from any uploaded recording.")
 
@@ -223,15 +248,40 @@ metadata['_filename'] = selected_name
 # columns — only amplitude/frequency summaries per interval. Route them to
 # the Bargraph Monitoring page regardless of which page is selected, rather
 # than letting the waveform-only pages below crash on a missing column.
-if not metadata.get('is_waveform', True) and page != "📉 Bargraph Monitoring":
-    st.info(f"**{selected_name}** is a Bargraph recording, not a Waveform recording. Switch to **📉 Bargraph Monitoring** in the sidebar to view it.")
+is_monitoring_page = page.startswith("📉 Bargraph Monitoring")
+is_report_page = page == "🖨️ Print Report"
+if not metadata.get('is_waveform', True) and not (
+    is_monitoring_page or is_report_page
+):
+    st.info(
+        f"**{selected_name}** is a Bargraph recording, not a Waveform recording. "
+        "Choose **Bargraph Monitoring** in the Main menu to view it."
+    )
     st.stop()
 
-if page == "📉 Bargraph Monitoring":
+if page == "📉 Bargraph Monitoring — Data Overview":
     # monitoring.py expects time_axis in raw seconds (bar_index * interval_seconds);
     # _parse_uploaded_file normalizes everything to milliseconds for the waveform
     # pages above, so convert back here.
     monitoring.render(df, time_axis / 1000, metadata, sampling_rate)
+    st.stop()
+
+if page == "📉 Bargraph Monitoring — Trends":
+    monitoring_trends.render(
+        df, time_axis / 1000, metadata, sampling_rate
+    )
+    st.stop()
+
+if page == "📉 Bargraph Monitoring — Events & Thresholds":
+    monitoring_events.render(
+        df, time_axis / 1000, metadata, sampling_rate
+    )
+    st.stop()
+
+if page == "📉 Bargraph Monitoring — PPV Compliance":
+    monitoring_compliance.render(
+        df, time_axis / 1000, metadata, sampling_rate
+    )
     st.stop()
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -268,11 +318,19 @@ elif page == "💥 Signature Hole Analysis":
     sha.render(df, time_axis, sampling_rate)
 
 elif page == "🖨️ Print Report":
-    report.render(
-        df,
-        time_axis,
-        metadata,
-        sampling_rate,
-        ppv_registry=st.session_state.ppv_registry,
-        uploaded_files_dict=st.session_state.uploaded_files_dict,
-    )
+    if metadata.get("is_waveform", True):
+        report.render(
+            df,
+            time_axis,
+            metadata,
+            sampling_rate,
+            ppv_registry=st.session_state.ppv_registry,
+            uploaded_files_dict=st.session_state.uploaded_files_dict,
+        )
+    else:
+        monitoring_report.render(
+            df,
+            time_axis / 1000,
+            metadata,
+            sampling_rate,
+        )

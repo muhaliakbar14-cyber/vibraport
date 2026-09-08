@@ -7,6 +7,8 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+output/
+tmp/
 .env
 testfile-sis/
 csv_test/
