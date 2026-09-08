@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-02.
+Last updated: 2026-09-07.
 
 ## Product Direction
 - Vibraport remains a Streamlit-first vibration-analysis application; no framework rewrite is currently planned.
@@ -23,6 +23,7 @@ Last updated: 2026-09-02.
 - User-facing duration terms are **Short-term** and **Long-term**.
 - There is intentionally no measurement-location selector. Each result states the applied measurement basis and explains when the user must compare against another standard column for the actual sensor location.
 - DIN Short-term evaluates foundation/all-directions limits; DIN Long-term uses topmost-floor horizontal values and explains the separate floor-slab vertical values.
+- DIN compliance charts now use linear 1-100 Hz frequency and 0-60 mm/s PPV axes, so each guideline segment is visually straight like the source figure. SNI and BS retain their logarithmic axes.
 - BS Short-term evaluates building-base transient limits. Below 4 Hz, Line 2 returns `REVIEW` because the standard requires a displacement check.
 - BS Long-term is a conservative 50% screening implementation. Exceeding it returns `REVIEW`, not automatic failure, because the reduction is condition-dependent.
 - Compliance statuses are `PASS`, `FAIL`, and `REVIEW`; charts and reports use the same evaluator.
@@ -41,9 +42,12 @@ Last updated: 2026-09-02.
 - Browser-driven testing completed on 2026-08-31 using a synthetic waveform CSV: upload, Data Overview, all standard/duration selectors, measurement-basis explanations, Print Report selectors, and end-to-end PDF generation all worked.
 - No browser console errors appeared in the tested workflow.
 - Representative SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were raster-rendered and checked for overlap, clipping, chart readability, and table alignment.
-- On branch `windows-packaging`, launcher and packaging checks pass and the full suite passes: **93 tests**.
+- On branch `windows-packaging`, launcher and packaging checks pass and the full suite passes: **94 tests**.
 - A live launcher smoke test bound Streamlit to a dynamically selected `127.0.0.1` port; both `/_stcore/health` and `/` returned HTTP 200.
 - A Linux structural PyInstaller `onedir` build completed successfully and its frozen UI rendered all six pages in the navigation with no browser console errors. This is validation of the spec only, not a Windows deliverable.
+- The updated native Windows bundle at commit `483a290` has now validated the tray lifecycle and single-instance behavior: browser close leaves the server available, a later executable launch reopens the existing instance without allocating another port, and tray Exit completes shutdown after a short delay.
+- The user subsequently reported that the complete portable artifact passed the clean Windows/offline acceptance checklist. This confirms that end users do not need a separate Python installation when running the packaged `dist\\Vibraport` artifact.
+- A live Streamlit check from `/home/bolay/vibraport` on 2026-09-07 confirmed the DIN Short-term chart's linear band widths and label alignment with no browser warnings or errors.
 
 ## Windows Packaging Track
 - Windows packaging work is isolated on branch `windows-packaging`; `main` remains the clean pushed application baseline at commit `c468136`.
@@ -52,11 +56,12 @@ Last updated: 2026-09-02.
 - The launcher now has a native Windows tray with **Open Vibraport** and **Exit Vibraport**. Exit calls Streamlit's graceful server stop; closing only the browser leaves the app available in the tray.
 - A named Windows mutex enforces a single process. Later launches read the validated localhost URL published by the primary process, reopen it in the browser, and exit.
 - A two-color Vibraport V/wave logo derived from the visual character of the user's Abdiyasa reference is integrated as the Windows executable icon, tray icon, and browser favicon.
-- The user successfully built the prior native Windows portable bundle and checked all functions, including Print Report. The new tray/single-instance/logo revision must now be rebuilt and validated on Windows; no installer exists yet.
+- The user successfully built the prior native Windows portable bundle and checked all functions, including Print Report. The user then pulled and rebuilt commit `483a290`, confirmed its tray lifecycle and single-instance behavior, and reported that the complete clean-machine/offline checklist passed. No installer exists yet; ZIP distribution is functional, while an installer is the next optional distribution-quality milestone.
 - The intended first artifact is a PyInstaller `onedir` portable build, followed by an Inno Setup installer after clean-Windows validation.
 
 ## Known Operational Notes
 - Start locally from the repository root with `venv/bin/streamlit run app.py`.
 - The completed compliance/report work is committed and pushed on `main` at `c468136`.
 - Windows packaging source and tests are maintained on the separate `windows-packaging` branch.
+- The active Windows packaging implementation is pushed at `483a290`.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.

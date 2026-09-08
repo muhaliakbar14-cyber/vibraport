@@ -1,13 +1,12 @@
 # Next Steps
 
-Last updated: 2026-09-02.
+Last updated: 2026-09-07.
 
 ## Immediate
-1. Commit and push the tray/single-instance/logo update on `windows-packaging` after the user approves the logo.
-2. Pull the branch and rerun `packaging/build_windows.ps1` on Windows 10/11 x64 to produce the updated portable bundle.
-3. Confirm the native tray icon, Open/Exit commands, graceful process shutdown, second-launch reopen behavior, executable icon, and browser favicon on Windows.
-4. Review the native bundle size and warnings, then optimize safe unused dependencies if needed without removing Streamlit, Plotly, Kaleido, SciPy, ReportLab, or the shared compliance engine.
-5. Only after the updated portable build passes, add an Inno Setup installer with shortcuts, version metadata, and uninstall support.
+1. Confirm the revised linear DIN frequency/PPV axes and straight guideline segments in the usual `/home/bolay/vibraport` launch workflow.
+2. Continue with the next user-selected main-application improvement.
+3. When explicitly requested, place/commit the scoped DIN chart and regression-test changes on `main` without mixing in unrelated Windows packaging work.
+4. Return later to the optional Inno Setup decision; the validated ZIP remains usable now.
 
 ## Product Hardening
 1. Add fixture-locked tests sourced from worked examples for every implemented compliance curve and boundary, including DIN alternate sensor-location columns if those are later automated.

@@ -1,4 +1,4 @@
-# Latest Handoff (2026-09-02)
+# Latest Handoff (2026-09-07)
 
 ## Completed
 - Vibraport remains a six-page Streamlit application with `.sis`/`.csv`, dual-block waveform, SHA, attenuation, monitoring, and PDF-report workflows.
@@ -10,6 +10,7 @@
 - No measurement-location selector was added. The UI and PDF state the applied basis and explain alternate standard columns/checks.
 - The report includes Notes 1-3 in the header, Inter fonts, shared waveform scales, Record Values/PVS, and the selected standard chart.
 - CSV frequency fallback and bounded Kaleido chart export are active.
+- DIN Short-term and Long-term compliance charts now use linear 1-100 Hz frequency and 0-60 mm/s PPV axes. DIN band/category annotations use linear coordinates and every guideline segment is visually straight; SNI and BS remain logarithmic.
 
 ## Verification
 - `git diff --check`: passed.
@@ -17,10 +18,13 @@
 - `pytest -q`: **78 passed**.
 - Live browser test: upload, standards/durations, Overview, Print Report, and PDF generation passed with no console errors.
 - Five representative PDF variants were rendered and visually inspected successfully.
+- Current full suite: **94 passed**.
+- Live Streamlit test from `/home/bolay/vibraport` confirmed the corrected DIN Short-term proportions and label alignment with no browser warnings/errors.
 
 ## Branch State
 - The compliance/report work is committed and pushed on `main` at `c468136`.
 - Active branch: `windows-packaging`.
+- The current Windows tray/single-instance/branding implementation is committed and pushed at `483a290` (`Add Windows tray lifecycle and Vibraport branding`).
 - The branch contains the launcher, pinned Windows manifest, PyInstaller spec, PowerShell build script, launcher/packaging tests, `.venv-windows` ignore rule, and Windows-track memory-bank updates. It does not change analysis, parsing, compliance, UI-page, or report behavior.
 
 ## Windows Packaging Step 1
@@ -50,13 +54,14 @@
 - Added `pystray==0.19.5` and explicit Windows backend collection.
 - Focused launcher/packaging tests: **15 passed**. Full suite: **93 passed**.
 - Updated Linux structural PyInstaller build succeeded; frozen UI and favicon loaded with no browser errors.
-- Windows-only mutex and tray behavior still require a rebuilt native bundle for final validation.
-- Changes are uncommitted and unpushed pending user review of the logo.
+- The user pulled and rebuilt commit `483a290` on Windows. The tray appeared, closing the browser left Vibraport running as intended, a second executable launch reused the existing instance instead of opening another port, and **Exit Vibraport** stopped the process after a short graceful-shutdown delay.
+- A DLL-load error seen during testing came from launching the intermediate executable under `build\\vibraport_windows`; launching `dist\\Vibraport\\Vibraport.exe` resolved it. The complete `dist\\Vibraport` folder is the portable artifact and must stay together.
 
 ## Immediate Next Task
-1. Obtain user approval for the generated logo, then commit and push this update.
-2. Rebuild on Windows and verify tray Open/Exit, clean shutdown, second-launch reopen, and all three icon surfaces.
-3. Recheck real `.sis`, `.csv`, and multi-file PDF workflows before installer work.
+1. Have the user confirm the revised DIN axis proportions and straight guideline segments.
+2. Continue with the next user-selected main-application improvement before returning to installer work.
+3. Keep the scoped DIN chart/test change separate from Windows packaging changes when the user later requests a commit.
+4. The already validated ZIP remains usable; Inno Setup remains an optional later distribution task.
 
 ## Guardrails for the Next Session
 - Read `memory-bank/current-state.md`, `decisions.md`, `next-steps.md`, and this file first.

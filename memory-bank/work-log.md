@@ -182,4 +182,33 @@
   - `git diff --check`: passed;
   - updated Linux structural PyInstaller `onedir` build: passed;
   - frozen Streamlit welcome UI and generated favicon: loaded successfully with no browser warnings/errors.
-- Native Windows tray/mutex testing remains required after the branch is pushed and rebuilt on Windows.
+- At the end of this implementation pass, native Windows tray/mutex testing still remained; the following entry records its completion.
+
+## 2026-09-02 — Updated native Windows bundle validation
+- Committed and pushed the tray, single-instance, logo, packaging, tests, and memory-bank work to `windows-packaging` at `483a290` (`Add Windows tray lifecycle and Vibraport branding`).
+- The user pulled the branch and rebuilt the portable Windows bundle.
+- An initial `Failed to load Python DLL` dialog was traced to launching the intermediate `build\\vibraport_windows` executable. The correct distributable is `dist\\Vibraport\\Vibraport.exe`, accompanied by the complete `_internal` directory.
+- Confirmed on Windows:
+  - closing the browser leaves the Vibraport background process alive, as designed;
+  - launching the executable again reopens/reuses the existing instance instead of starting another server on another port;
+  - **Exit Vibraport** from the tray stops the process successfully after the graceful shutdown completes.
+- Next release gate: run the updated complete portable directory on a clean Windows 10/11 x64 machine or VM with no Python installed and networking disabled, then recheck real `.sis`, `.csv`, PDF, and icon workflows before implementing an installer.
+
+## 2026-09-02 — Clean Windows/offline portable acceptance
+- The user reported that the complete updated portable bundle passed the clean Windows/offline acceptance checklist and all tested functions worked correctly.
+- The portable `dist\\Vibraport` artifact is therefore considered self-contained for end users; Python is needed only on the Windows build machine, not on machines running the packaged bundle.
+- ZIP distribution is now a viable release option. An Inno Setup installer is optional for execution but recommended when Start-menu/Desktop shortcuts, Add/Remove Programs registration, upgrades, and straightforward uninstall behavior are desired.
+- If installer work proceeds, the `.iss` source can be authored in the repository on any OS, but the actual installer must be compiled and acceptance-tested on Windows against the native Windows PyInstaller bundle.
+
+## 2026-09-07 — DIN compliance chart linear axes
+- Changed the shared compliance chart builder so DIN 4150-3:2016 Short-term and Long-term use a linear 1-100 Hz frequency axis and a linear 0-60 mm/s PPV axis, matching the source figure's geometry.
+- Repositioned DIN frequency-band and category-line labels in linear axis coordinates. This removes the apparent curve previously caused by plotting linearly interpolated DIN limits on a logarithmic PPV axis.
+- Preserved SNI and BS logarithmic frequency axes and did not change compliance limits, interpolation, or PASS/FAIL/REVIEW evaluation.
+- Added regression coverage for each standard's axis type, DIN's 1-100 Hz range, and DIN annotation positions.
+- Corrected an initial delivery mistake: the first implementation was made only in an isolated `main` checkout, so the user's usual `/home/bolay/vibraport` launch still loaded the old chart. The same scoped change was then applied and verified in the usual checkout.
+- Validation from `/home/bolay/vibraport`:
+  - `python -m py_compile core/compliance/chart.py tests/test_compliance.py`: passed.
+  - `pytest -q tests/test_compliance.py`: **37 passed**.
+  - `pytest -q`: **94 passed**.
+  - `git diff --check`: passed before the memory-bank update.
+  - Live Streamlit test with a synthetic waveform CSV confirmed linear DIN band widths, straight guideline segments, and correct label alignment; browser console showed no warnings or errors.
