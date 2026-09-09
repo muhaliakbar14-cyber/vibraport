@@ -196,3 +196,9 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
   evaluator and engineering-screening disclaimer.
 - Why: a formal report must remain reproducible and responsive without implying
   that user alarms are regulations or that peak bars are RMS/VDV.
+
+## 2026-09-09 — Cross-platform PDF test extraction
+- Decision: use pure-Python `pypdf` for monitoring-report text assertions
+  instead of invoking the external `pdftotext` command.
+- Why: the Windows packaging script runs the complete test suite on a clean
+  Windows host, where Poppler is not an application or build prerequisite.

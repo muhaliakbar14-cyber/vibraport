@@ -310,3 +310,14 @@
   - Generated a five-page all-sections DIN Short-term sample. Poppler rendering
     and visual inspection verified every page after fixing table-page frame
     layering and event-peak formatting; no clipping or overlap remained.
+
+## 2026-09-09 — Windows-compatible monitoring-report tests
+- Reproduced the reported Windows build gate from its traceback: the new
+  monitoring-report tests invoked `pdftotext`, which is present in the Linux
+  development environment but absent on a clean Windows build machine.
+- Replaced the subprocess call with `pypdf.PdfReader` text extraction and added
+  `pypdf` to the application requirements; the Windows branch pins version
+  6.18.0 in its reproducible build manifest.
+- Validation:
+  - Main full suite: **119 passed**.
+  - Python compilation and `git diff --check`: passed.

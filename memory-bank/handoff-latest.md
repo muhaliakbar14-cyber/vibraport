@@ -54,6 +54,8 @@
 - `git diff --check`: passed.
 - Python compilation: passed.
 - `pytest -q`: **119 passed**.
+- The monitoring-report PDF assertions are cross-platform and no longer depend
+  on a separately installed Poppler/`pdftotext` executable.
 - Live browser test: upload, standards/durations, Overview, Print Report, and PDF generation passed with no console errors.
 - Five representative PDF variants were rendered and visually inspected successfully.
 - Live DIN UI test passed with a synthetic waveform CSV: the frequency regions have linear widths, all guideline segments are straight, and no browser warnings/errors appeared.

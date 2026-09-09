@@ -1,12 +1,12 @@
 """Tests for selectable-section bargraph monitoring PDFs."""
 
 import io
-import subprocess
 
 import numpy as np
 import pandas as pd
 import pytest
 from PIL import Image
+from pypdf import PdfReader
 
 from pages.monitoring_report import (
     SECTION_COMPLIANCE,
@@ -164,10 +164,5 @@ def _fake_image_export(*_args, **_kwargs):
 
 
 def _pdf_text(pdf_bytes):
-    result = subprocess.run(
-        ["pdftotext", "-", "-"],
-        input=pdf_bytes,
-        capture_output=True,
-        check=True,
-    )
-    return result.stdout.decode("utf-8")
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    return "\n".join(page.extract_text() or "" for page in reader.pages)

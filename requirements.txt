@@ -7,6 +7,7 @@ numpy
 plotly==5.24.1
 scipy
 reportlab
+pypdf
 # Kaleido >=1.0 stopped bundling its own Chromium and needs an explicit
 # `kaleido.get_chrome()` fetch step we don't run, and there's no
 # packages.txt supplying system Chrome either — on Streamlit Community
