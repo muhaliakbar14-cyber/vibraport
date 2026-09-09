@@ -409,3 +409,13 @@
   - `pytest -q` on synchronized `windows-packaging`: **134 passed**.
   - Python compilation and `git diff --check`: passed on both application and
     packaging code paths.
+
+## 2026-09-09 — Windows-compatible monitoring-report tests
+- Confirmed from the native Windows traceback that the build gate failed before
+  PyInstaller because `tests/test_monitoring_report.py` invoked the unavailable
+  external `pdftotext` executable.
+- Replaced that subprocess with `pypdf.PdfReader`, added the general dependency,
+  and pinned `pypdf==6.18.0` in `requirements-windows.txt`.
+- Validation:
+  - Synchronized Windows-branch full suite: **134 passed**.
+  - Python compilation and `git diff --check`: passed.

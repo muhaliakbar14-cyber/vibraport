@@ -100,6 +100,9 @@ Last updated: 2026-09-08.
   `windows-packaging` branch passes **134 tests**, including launcher and
   packaging coverage.
 - `git diff --check` passes.
+- Monitoring PDF tests use pure-Python `pypdf` text extraction instead of the
+  external `pdftotext` executable, so the full test gate runs on clean Windows
+  build machines as well as Linux.
 - Browser-driven testing completed on 2026-08-31 using a synthetic waveform CSV: upload, Data Overview, all standard/duration selectors, measurement-basis explanations, Print Report selectors, and end-to-end PDF generation all worked.
 - No browser console errors appeared in the tested workflow.
 - Representative SNI, DIN Short-term/Long-term, and BS Short-term/Long-term PDFs were raster-rendered and checked for overlap, clipping, chart readability, and table alignment.

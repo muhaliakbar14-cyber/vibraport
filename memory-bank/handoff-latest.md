@@ -55,6 +55,8 @@
 - Python compilation: passed.
 - `pytest -q` on `main`: **119 passed**.
 - `pytest -q` on the synchronized `windows-packaging` branch: **134 passed**.
+- The monitoring-report PDF assertions are cross-platform and no longer depend
+  on a separately installed Poppler/`pdftotext` executable.
 - Live browser test: upload, standards/durations, Overview, Print Report, and PDF generation passed with no console errors.
 - Five representative PDF variants were rendered and visually inspected successfully.
 - The Windows launcher and packaging tests also pass with the synchronized
