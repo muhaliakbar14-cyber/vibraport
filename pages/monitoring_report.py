@@ -267,7 +267,7 @@ def render(df, time_axis, metadata, sampling_rate):
         except ImageExportTimeoutError as exc:
             st.error(
                 f"PDF generation could not recover the chart renderer: {exc} "
-                "Exit Vibraport from the tray, reopen it, and try once more."
+                "Exit METIS Analytics from the tray, reopen it, and try once more."
             )
         except (ImportError, RuntimeError, ValueError) as exc:
             st.error(f"Monitoring report generation failed: {exc}")
@@ -276,7 +276,7 @@ def render(df, time_axis, metadata, sampling_rate):
             st.session_state["monitoring_report_download"] = {
                 "signature": signature,
                 "bytes": pdf_bytes,
-                "filename": f"vibraport-monitoring-{base_name}.pdf",
+                "filename": f"metis-analytics-monitoring-{base_name}.pdf",
             }
 
     prepared = st.session_state.get("monitoring_report_download")
@@ -519,7 +519,7 @@ def _build_monitoring_pdf(
         canvas.line(margin, page_height - 16 * mm, page_width - margin, page_height - 16 * mm)
         canvas.setFillColor(navy)
         canvas.setFont(bold_font, 8)
-        canvas.drawString(margin, page_height - 12 * mm, "VIBRAPORT")
+        canvas.drawString(margin, page_height - 12 * mm, "METIS ANALYTICS")
         canvas.setFillColor(grey)
         canvas.setFont(body_font, 7)
         canvas.drawRightString(
@@ -528,7 +528,7 @@ def _build_monitoring_pdf(
             "Bargraph Monitoring Report",
         )
         canvas.line(margin, 14 * mm, page_width - margin, 14 * mm)
-        canvas.drawString(margin, 10 * mm, "VIBRAPORT by ABDIYASA")
+        canvas.drawString(margin, 10 * mm, "METIS ANALYTICS by ABDIYASA")
         canvas.drawRightString(
             page_width - margin,
             10 * mm,
@@ -598,7 +598,7 @@ def _build_monitoring_pdf(
             Spacer(1, 8 * mm),
             Paragraph(
                 "Bargraph values are interval summaries stored by the instrument. "
-                "Unflagged channels are reported as interval peaks; Vibraport does "
+                "Unflagged channels are reported as interval peaks; METIS Analytics does "
                 "not reconstruct waveform RMS or VDV from these values.",
                 styles["small"],
             ),
@@ -698,8 +698,8 @@ def _build_monitoring_pdf(
         rightMargin=15 * mm,
         topMargin=21 * mm,
         bottomMargin=18 * mm,
-        title=f"Vibraport Bargraph Monitoring Report - {metadata.get('_filename', '')}",
-        author=options.get("operator") or "Vibraport",
+        title=f"METIS Analytics Bargraph Monitoring Report - {metadata.get('_filename', '')}",
+        author=options.get("operator") or "METIS Analytics",
     )
     document.build(story, canvasmaker=HeaderFooterCanvas)
     return buffer.getvalue()

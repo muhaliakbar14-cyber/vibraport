@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-from collections import Counter
 from pathlib import Path
 
 from PIL import Image
@@ -32,7 +31,7 @@ def test_pyinstaller_spec_is_valid_python_and_declares_required_data():
     assert 'PROJECT_ROOT / "assets"' in spec_text
     assert '"streamlit", "plotly", "kaleido"' in spec_text
     assert 'contents_directory="_internal"' in spec_text
-    assert 'assets" / "icons" / "vibraport.ico"' in spec_text
+    assert 'assets" / "icons" / "metis.ico"' in spec_text
     assert "console=False" in spec_text
     assert "COLLECT(" in spec_text
 
@@ -45,23 +44,23 @@ def test_build_script_enforces_windows_and_verifies_bundle_outputs():
     assert "64-bit Python is required" in script
     assert "-m pytest -q" in script
     assert "-m PyInstaller" in script
-    assert 'Join-Path $BundleRoot "Vibraport.exe"' in script
+    assert 'Join-Path $BundleRoot "METIS Analytics.exe"' in script
     assert 'Join-Path $RuntimeRoot "app.py"' in script
 
 
-def test_logo_and_windows_icon_are_valid_small_icon_assets():
-    logo_path = ROOT / "assets" / "icons" / "vibraport-logo.png"
-    icon_path = ROOT / "assets" / "icons" / "vibraport.ico"
+def test_brand_assets_and_windows_icon_are_valid():
+    logo_path = ROOT / "assets" / "icons" / "metis-logogram.png"
+    mark_path = ROOT / "assets" / "icons" / "metis-icon.png"
+    icon_path = ROOT / "assets" / "icons" / "metis.ico"
 
     with Image.open(logo_path) as logo:
-        assert logo.size == (1024, 1024)
+        assert logo.width > logo.height
         rgba = logo.convert("RGBA")
         assert rgba.getchannel("A").getextrema() == (0, 255)
-        opaque_colors = Counter(
-            pixel[:3] for pixel in rgba.get_flattened_data() if pixel[3] >= 250
-        )
-        dominant_colors = {color for color, _count in opaque_colors.most_common(2)}
-        assert dominant_colors == {(31, 47, 120), (255, 255, 255)}
+
+    with Image.open(mark_path) as mark:
+        assert mark.width == mark.height
+        assert mark.convert("RGBA").getchannel("A").getextrema() == (0, 255)
 
     with Image.open(icon_path) as icon:
         assert {16, 24, 32, 48, 64, 128, 256}.issubset(

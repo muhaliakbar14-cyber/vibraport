@@ -6,7 +6,7 @@ Last updated: 2026-09-23.
 - `app.py`: Streamlit entrypoint, file manager/session registry,
   parse caching, grouped Waveform / Bargraph Monitoring / Print Report
   navigation, and explicit page routing.
-- `launcher_windows.py`: Windows packaging entrypoint; selects a free localhost port, applies local-only Streamlit settings, waits for server health, and opens the default browser. A named Windows mutex enforces one instance, `%LOCALAPPDATA%/Vibraport/instance.json` publishes only its localhost URL for reopen requests, and the system-tray controller provides Open/Exit commands. Tray Exit captures and gracefully stops Streamlit's server.
+- `launcher_windows.py`: Windows packaging entrypoint; selects a free localhost port, applies local-only Streamlit settings, waits for server health, and opens the default browser. A named Windows mutex enforces one instance, `%LOCALAPPDATA%/METIS Analytics/instance.json` publishes only its localhost URL for reopen requests, and the system-tray controller provides Open/Exit commands. Tray Exit captures and gracefully stops Streamlit's server.
 - `.streamlit/config.toml`: hides Streamlit's automatic pages navigation.
 - `pages/`: waveform analysis, monitoring overview, monitoring trends,
   monitoring-event review, monitoring PPV compliance, monitoring PDF reporting,
@@ -15,10 +15,14 @@ Last updated: 2026-09-23.
 ## Windows Build Pipeline
 - `requirements-windows.txt`: pinned CPython 3.12 application, test, PyInstaller, and `pystray` dependencies for reproducible Windows x64 builds.
 - `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It includes the dynamically loaded `app.py`, application packages, Streamlit/Plotly/Kaleido data and binaries, configuration, fonts, logo assets, Windows tray backend, and executable icon under the `_internal` runtime directory.
-- `assets/icons/vibraport-logo.png`: flat navy/white transparent master used for the tray and browser favicon.
-- `assets/icons/vibraport.ico`: multi-resolution 16–256 px Windows executable icon.
+- `assets/icons/metis-icon.png`: circular navy/cyan/white owl-and-wave mark
+  used for the browser favicon and Windows tray.
+- `assets/icons/metis-logogram.png`: horizontal METIS Analytics brand lockup
+  with the descriptor `VIBRATION ANALYSIS SOFTWARE`, used in the Streamlit
+  sidebar and welcome screen.
+- `assets/icons/metis.ico`: multi-resolution 16–256 px Windows executable icon.
 - `packaging/build_windows.ps1`: Windows-only build entrypoint. It creates `.venv-windows`, installs the pinned dependencies, runs the full test suite, builds the portable bundle, and checks required outputs.
-- Target portable artifact: `dist/Vibraport/Vibraport.exe`; the portable bundle
+- Target portable artifact: `dist/METIS Analytics/METIS Analytics.exe`; the portable bundle
   has passed clean-Windows testing, and an installer remains optional.
 
 ## Domain and Analysis

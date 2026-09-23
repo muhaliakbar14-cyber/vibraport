@@ -15,7 +15,7 @@ $DistPath = Join-Path $RepoRoot "dist"
 $WorkPath = Join-Path $RepoRoot "build"
 
 if ([System.Environment]::OSVersion.Platform -ne [System.PlatformID]::Win32NT) {
-    throw "Vibraport's Windows executable must be built on Windows."
+    throw "METIS Analytics must be built on Windows."
 }
 
 Push-Location $RepoRoot
@@ -62,14 +62,15 @@ try {
         throw "PyInstaller failed."
     }
 
-    $BundleRoot = Join-Path $DistPath "Vibraport"
+    $BundleRoot = Join-Path $DistPath "METIS Analytics"
     $RuntimeRoot = Join-Path $BundleRoot "_internal"
     $RequiredOutputs = @(
-        (Join-Path $BundleRoot "Vibraport.exe"),
+        (Join-Path $BundleRoot "METIS Analytics.exe"),
         (Join-Path $RuntimeRoot "app.py"),
         (Join-Path $RuntimeRoot ".streamlit\config.toml"),
         (Join-Path $RuntimeRoot "assets\fonts\Inter-Regular.ttf"),
-        (Join-Path $RuntimeRoot "assets\icons\vibraport-logo.png")
+        (Join-Path $RuntimeRoot "assets\icons\metis-icon.png"),
+        (Join-Path $RuntimeRoot "assets\icons\metis-logogram.png")
     )
     foreach ($RequiredOutput in $RequiredOutputs) {
         if (-not (Test-Path $RequiredOutput)) {
@@ -77,8 +78,8 @@ try {
         }
     }
 
-    Write-Host "Portable Vibraport bundle created at: $BundleRoot"
-    Write-Host "Next: launch Vibraport.exe and complete the clean-Windows UI/PDF smoke test."
+    Write-Host "Portable METIS Analytics bundle created at: $BundleRoot"
+    Write-Host "Next: launch METIS Analytics.exe and complete the clean-Windows UI/PDF smoke test."
 }
 finally {
     Pop-Location

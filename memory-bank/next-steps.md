@@ -3,9 +3,11 @@
 Last updated: 2026-09-23.
 
 ## Immediate
-1. Rebuild the native Windows portable bundle and repeat the previously failing
-   two-file/all-sections waveform PDF workflow. Confirm both the first report
-   and a second report in the same app session complete successfully.
+1. Rebuild the native Windows portable bundle and verify the renamed
+   `dist\METIS Analytics\METIS Analytics.exe`, circular application/tray icon,
+   METIS Analytics logogram, and Open/Exit tray labels. Then repeat the
+   previously failing two-file/all-sections waveform PDF workflow twice in the
+   same app session.
 2. Ask a vibration engineer to review the DIN/BS category wording,
    measurement-basis explanations, and the conservative BS Long-term screening
    policy before treating the output as certification-grade.

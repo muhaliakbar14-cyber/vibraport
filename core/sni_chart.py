@@ -1,7 +1,7 @@
 """Backward-compatible SNI chart imports.
 
 New code should import from :mod:`core.compliance`. This wrapper keeps older
-call sites and third-party imports working while Vibraport transitions to the
+call sites and third-party imports working while METIS Analytics transitions to the
 multi-standard compliance engine.
 """
 

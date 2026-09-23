@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-"""PyInstaller onedir specification for the Windows Vibraport bundle."""
+"""PyInstaller onedir specification for the Windows METIS Analytics bundle."""
 
 from pathlib import Path
 import sys
@@ -10,7 +10,7 @@ from PyInstaller.utils.hooks import collect_all, collect_submodules
 PROJECT_ROOT = Path(SPECPATH).resolve().parent
 
 # Streamlit loads app.py dynamically, so its import graph is not visible from
-# launcher_windows.py. Declare Vibraport's packages and top-level modules here.
+# launcher_windows.py. Declare the app's packages and top-level modules here.
 hiddenimports = ["app", "config"]
 for package_name in ("core", "optimizer", "pages", "regression"):
     hiddenimports += collect_submodules(package_name)
@@ -54,7 +54,7 @@ exe = EXE(
     a.scripts,
     [],
     exclude_binaries=True,
-    name="Vibraport",
+    name="METIS Analytics",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
@@ -66,7 +66,7 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     contents_directory="_internal",
-    icon=str(PROJECT_ROOT / "assets" / "icons" / "vibraport.ico"),
+    icon=str(PROJECT_ROOT / "assets" / "icons" / "metis.ico"),
 )
 
 coll = COLLECT(
@@ -76,5 +76,5 @@ coll = COLLECT(
     strip=False,
     upx=False,
     upx_exclude=[],
-    name="Vibraport",
+    name="METIS Analytics",
 )

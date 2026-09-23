@@ -22,8 +22,10 @@ from pages import (
     signal_analysis,
 )
 
-APP_ICON = Path(__file__).resolve().parent / "assets" / "icons" / "vibraport-logo.png"
-st.set_page_config(page_title="Vibraport", page_icon=str(APP_ICON), layout="wide")
+ASSET_ROOT = Path(__file__).resolve().parent / "assets" / "icons"
+APP_ICON = ASSET_ROOT / "metis-icon.png"
+APP_LOGOGRAM = ASSET_ROOT / "metis-logogram.png"
+st.set_page_config(page_title="METIS Analytics", page_icon=str(APP_ICON), layout="wide")
 
 
 @st.cache_data(show_spinner=False)
@@ -66,10 +68,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-pio.templates["vibraport"] = go.layout.Template(
+pio.templates["metis"] = go.layout.Template(
     layout=go.Layout(font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="#30343B"))
 )
-pio.templates.default = "plotly_white+vibraport"
+pio.templates.default = "plotly_white+metis"
 
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 # Initialize session state for file manager
@@ -120,8 +122,7 @@ def _build_ppv_registry_entry(df) -> dict:
     return entry
 
 with st.sidebar:
-    st.title("Vibraport")
-    st.caption("Vibration Data Manager")
+    st.image(str(APP_LOGOGRAM), width="stretch")
     st.divider()
 
     with st.expander("📁 Add Files", expanded=len(st.session_state.uploaded_files_dict) == 0):
@@ -187,12 +188,13 @@ with st.sidebar:
 
 # ── No file uploaded ───────────────────────────────────────────────────────────
 if not uploaded_file:
-    st.title("Welcome to Vibraport")
-    st.caption("Vibration Data Manager — powered by Vibracord .sis and CSV files")
+    st.image(str(APP_LOGOGRAM), width=700)
+    st.title("Welcome to METIS Analytics")
+    st.caption("Vibration Analysis Software — powered by Vibracord .sis and CSV files")
     st.divider()
 
     st.markdown("""
-    **Vibraport** is a vibration data analysis tool designed for **.sis** and CSV files exported 
+    **METIS Analytics** is a vibration data analysis tool designed for **.sis** and CSV files exported
     from **Vibracord** seismograph equipment. Built for engineers working with 
     blasting and vibration monitoring data.
     """)
@@ -231,7 +233,7 @@ if not uploaded_file:
 
     st.divider()
     st.info("👈 Upload a Vibracord .sis or CSV file from the sidebar to get started.")
-    st.caption("Vibraport is an independent tool and is not affiliated with Vibracord or its manufacturers.")
+    st.caption("METIS Analytics is an independent tool and is not affiliated with Vibracord or its manufacturers.")
     st.stop()
 
 # ── Attenuation & Safe Zone doesn't need the active file's parsed waveform —

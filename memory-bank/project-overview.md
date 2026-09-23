@@ -1,10 +1,10 @@
 # Project Overview
 
 ## Name
-Vibraport
+METIS Analytics
 
 ## Goal
-Provide mining and vibration practitioners with a reliable Streamlit application for importing Vibracord recordings, inspecting waveforms and derived signals, performing blast/attenuation analyses, assessing structural-vibration compliance, and producing professional PDF reports.
+Provide mining and vibration practitioners with a reliable Streamlit application for importing Vibracord recordings, inspecting waveforms and derived signals, performing blast/attenuation analyses, assessing structural-vibration compliance, and producing professional PDF reports. The product name is inspired by the Greek figure Metis and complements Vibracord device names such as Tellus, Gaia, and Hermes.
 
 ## Current Direction
 - Streamlit-first application in `app.py`.

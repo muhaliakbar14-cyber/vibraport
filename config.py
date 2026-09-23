@@ -1,6 +1,6 @@
 # config.py
 """
-Global configuration and simulation parameters for Vibraport.
+Global configuration and simulation parameters for METIS Analytics.
 """
 
 from dataclasses import dataclass, field

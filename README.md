@@ -1,8 +1,8 @@
-# Vibraport
+# METIS Analytics
 
-**Vibration Data Analysis & Reporting Tool**
+**Vibration Analysis Software**
 
-Vibraport adalah aplikasi berbasis **Python + Streamlit** untuk mengolah dan menganalisis data getaran hasil monitoring peledakan dari perangkat **Vibracord**.
+METIS Analytics adalah aplikasi berbasis **Python + Streamlit** untuk mengolah dan menganalisis data getaran hasil monitoring peledakan dari perangkat **Vibracord**.
 
 ## Fitur
 
@@ -94,18 +94,18 @@ Pada Windows 10/11 x64 dengan CPython 3.12, jalankan:
 powershell -ExecutionPolicy Bypass -File .\packaging\build_windows.ps1
 ```
 
-Hasil portable berada di `dist\Vibraport\`. Seluruh folder harus disalin;
-`Vibraport.exe` memerlukan isi folder `_internal` di sebelahnya.
+Hasil portable berada di `dist\METIS Analytics\`. Seluruh folder harus disalin;
+`METIS Analytics.exe` memerlukan isi folder `_internal` di sebelahnya.
 
-Saat dijalankan, Vibraport menampilkan ikon di Windows system tray dan membuka
+Saat dijalankan, METIS Analytics menampilkan ikon di Windows system tray dan membuka
 antarmuka lokal di browser. Menutup tab browser tidak menghentikan aplikasi.
-Gunakan menu tray **Open Vibraport** untuk membukanya kembali atau **Exit
-Vibraport** untuk menghentikan server secara bersih. Jika executable diklik dua
+Gunakan menu tray **Open METIS Analytics** untuk membukanya kembali atau **Exit
+METIS Analytics** untuk menghentikan server secara bersih. Jika executable diklik dua
 kali, instance kedua membuka kembali instance yang sudah berjalan lalu keluar.
 
 ## Catatan
 
-Vibraport merupakan **alat bantu analisis engineering**, bukan pengganti alat ukur, prosedur monitoring yang benar, standar/regulasi, atau engineering judgement.
+METIS Analytics merupakan **alat bantu analisis engineering**, bukan pengganti alat ukur, prosedur monitoring yang benar, standar/regulasi, atau engineering judgement.
 
 Hasil analisis, terutama simulasi **Signature Hole Analysis** dan prediksi PPV, perlu diinterpretasikan berdasarkan kondisi lapangan dan karakteristik site.
 

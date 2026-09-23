@@ -1,5 +1,27 @@
 # Latest Handoff (2026-09-23)
 
+## METIS Analytics Rebrand
+- Rebranded the active application from Vibraport to **METIS Analytics**, named
+  for the Greek figure Metis and aligned with Vibracord's mythology-based
+  device names.
+- The brand descriptor is exactly **VIBRATION ANALYSIS SOFTWARE**; the earlier
+  explosion wording was removed.
+- Added a horizontal logogram and a matching standalone circular owl/wave icon.
+  The standalone mark uses the same emblem as the logogram and remains legible
+  at favicon sizes. A multi-resolution Windows `.ico` was regenerated from it.
+- Updated Streamlit page/favicon/sidebar/welcome branding, waveform and
+  monitoring report labels/metadata/download names, Windows tray/mutex/state
+  paths, PyInstaller output names, build verification, tests, and README.
+- Preserved the repository directory/remote and internal
+  `packaging/vibraport_windows.spec` filename so existing clone/build commands
+  remain valid. The old icon files remain unused because file deletion was not
+  authorized.
+- Verification: **139 passed**; fresh live Streamlit CSV upload and PDF
+  generation reached `Report ready!` with no browser errors; seven-page
+  waveform and five-page monitoring PDFs were raster-rendered and visually
+  inspected with clean METIS Analytics headers/footers.
+- The rebrand is currently uncommitted and unpushed.
+
 ## PDF Chart-Renderer Recovery
 - Fixed intermittent waveform and monitoring PDF failures where Kaleido image
   export exceeded the former 25-second timeout.
@@ -21,7 +43,7 @@
   fix.
 
 ## Completed
-- Vibraport remains a Streamlit application with `.sis`/`.csv`, dual-block
+- METIS Analytics remains a Streamlit application with `.sis`/`.csv`, dual-block
   waveform, SHA, attenuation, monitoring, and PDF-report workflows.
 - Data Overview and Print Report now share `core/compliance/`.
 - Compliance choices:
@@ -86,7 +108,9 @@
 ## Windows Packaging State
 - The monitoring/report work is committed and pushed on `main` at `e023c0e`.
 - Active branch: `windows-packaging`.
-- The current Windows tray/single-instance/branding implementation is committed and pushed at `483a290` (`Add Windows tray lifecycle and Vibraport branding`).
+- The prior Vibraport tray/single-instance implementation was committed at
+  `483a290`. PDF recovery and its portable test are pushed through `4deb5e3`;
+  the METIS Analytics rebrand is the current uncommitted working-tree change.
 - The branch contains the launcher, pinned Windows manifest, PyInstaller spec,
   PowerShell build script, launcher/packaging tests, `.venv-windows` ignore
   rule, and synchronized main-application code.
@@ -163,8 +187,9 @@
   and `work-log`.
 
 ## Immediate Next Task
-1. Rebuild the native Windows portable bundle and validate two consecutive
-   multi-file/all-sections waveform reports in one app session.
+1. Review the uncommitted rebrand, then commit/push it only when explicitly
+   requested. Rebuild the renamed native Windows portable bundle and validate
+   two consecutive multi-file/all-sections waveform reports in one app session.
 2. Ask a vibration engineer to review DIN/BS category wording, measurement
    explanations, and the conservative BS Long-term screening policy.
 3. Validate normalized monitoring/report behavior against representative Gaia,

@@ -135,11 +135,11 @@ def test_synthetic_multi_file_report_with_every_optional_section(monkeypatch):
         return buffer.getvalue()
 
     monkeypatch.setattr(report, "_to_image", fake_image_export)
-    pdf_bytes = report._build_vibraport_pdf(
+    pdf_bytes = report._build_metis_pdf(
         files,
         {
             "project_name": "Export recovery regression",
-            "operator": "Vibraport test",
+            "operator": "METIS Analytics test",
             "client_name": "Test client",
             "report_notes": "All optional waveform sections enabled.",
             "inc_records": True,

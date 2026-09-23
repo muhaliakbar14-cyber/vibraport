@@ -461,3 +461,25 @@
   waveform records containing velocity, acceleration, displacement, frequency,
   and report metadata. The test still covers the multi-file summary and every
   optional waveform report section without committing customer measurements.
+
+## 2026-09-23 — Rebrand to METIS Analytics
+- Adopted **METIS Analytics** as the product name and **Vibration Analysis
+  Software** as the exact descriptor.
+- Added `assets/icons/metis-logogram.png`, a matching circular
+  `assets/icons/metis-icon.png`, and a 16-256 px `assets/icons/metis.ico`.
+- Rebranded Streamlit, PDF reports, Windows launcher/tray/state, PyInstaller
+  output names, build checks, README, and related regression tests while
+  leaving parsing and the shared compliance engine unchanged.
+- Kept repository/internal build paths named `vibraport` where renaming would
+  break existing clones or commands; old icon files remain unused and were not
+  deleted.
+- Validation:
+  - Full `pytest -q`: **139 passed**.
+  - Focused Windows launcher/packaging tests: **15 passed** after the final icon
+    replacement.
+  - Fresh live Streamlit instance: page title/logogram, CSV upload, Data
+    Overview, METIS Analytics PDF Report route, real PDF generation, and
+    download-ready state passed with no browser errors.
+  - Seven-page waveform and five-page monitoring PDFs were rendered to images;
+    every header/footer, page number, table, and section transition remained
+    unclipped and legible.

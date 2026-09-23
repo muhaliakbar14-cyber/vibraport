@@ -239,3 +239,17 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
 - Why: current Kaleido 1.x requires a separately installed or bundled Chrome,
   which would change the already validated self-contained/offline Windows
   packaging contract and requires a separate packaging migration.
+
+## 2026-09-23 — METIS Analytics brand identity
+- Decision: rename the customer-facing product from Vibraport to **METIS
+  Analytics**, with the descriptor **Vibration Analysis Software**.
+- Why: Metis supplies a concise engineering/analysis identity and aligns with
+  the mythology-based Vibracord device family without implying affiliation.
+- Decision: use one navy/cyan/white circular owl-and-wave emblem consistently
+  in the horizontal logogram, browser favicon, Windows tray, and executable
+  icon. Do not maintain a visually different standalone mark.
+- Decision: leave the Git repository path/remote, internal spec filename, and
+  historical memory entries unchanged. Rename active UI, reports, runtime
+  state, documentation, and distributable outputs.
+- Why: this completes the visible rebrand without breaking existing clones,
+  build commands, or historical traceability.

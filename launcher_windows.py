@@ -1,4 +1,4 @@
-"""Windows entry point for the frozen Vibraport distribution.
+"""Windows entry point for the frozen METIS Analytics distribution.
 
 The launcher runs Streamlit in-process so it works both from a normal Python
 checkout and from a PyInstaller executable. It intentionally contains no
@@ -23,7 +23,7 @@ from pathlib import Path
 
 HOST = "127.0.0.1"
 STARTUP_TIMEOUT_SECONDS = 30.0
-INSTANCE_MUTEX_NAME = "Local\\Vibraport.SingleInstance"
+INSTANCE_MUTEX_NAME = "Local\\METISAnalytics.SingleInstance"
 
 
 def bundle_root() -> Path:
@@ -40,16 +40,16 @@ def app_script() -> Path:
 
     script = bundle_root() / "app.py"
     if not script.is_file():
-        raise FileNotFoundError(f"Vibraport application entry point not found: {script}")
+        raise FileNotFoundError(f"METIS Analytics entry point not found: {script}")
     return script
 
 
 def app_icon() -> Path:
     """Resolve the PNG used by the Windows tray icon."""
 
-    icon = bundle_root() / "assets" / "icons" / "vibraport-logo.png"
+    icon = bundle_root() / "assets" / "icons" / "metis-icon.png"
     if not icon.is_file():
-        raise FileNotFoundError(f"Vibraport application icon not found: {icon}")
+        raise FileNotFoundError(f"METIS Analytics icon not found: {icon}")
     return icon
 
 
@@ -101,7 +101,7 @@ class SingleInstanceGuard:
         if state_path is None:
             state_root = Path(
                 os.environ.get("LOCALAPPDATA") or tempfile.gettempdir()
-            ) / "Vibraport"
+            ) / "METIS Analytics"
             state_path = state_root / "instance.json"
         self.state_path = state_path
         self._mutex_handle: int | None = None
@@ -227,7 +227,7 @@ class AppController:
         threading.Thread(
             target=wait_for_server_and_open,
             args=(self.url,),
-            name="vibraport-browser-launcher",
+            name="metis-browser-launcher",
             daemon=True,
         ).start()
 
@@ -256,20 +256,20 @@ def create_tray_icon(controller: AppController):
 
     image = Image.open(app_icon()).convert("RGBA")
 
-    def open_vibraport(_icon, _item) -> None:
+    def open_metis(_icon, _item) -> None:
         controller.open_browser()
 
-    def exit_vibraport(icon, _item) -> None:
+    def exit_metis(icon, _item) -> None:
         controller.request_shutdown()
         icon.stop()
 
     return pystray.Icon(
-        "Vibraport",
+        "METIS Analytics",
         image,
-        "Vibraport",
+        "METIS Analytics",
         menu=pystray.Menu(
-            pystray.MenuItem("Open Vibraport", open_vibraport, default=True),
-            pystray.MenuItem("Exit Vibraport", exit_vibraport),
+            pystray.MenuItem("Open METIS Analytics", open_metis, default=True),
+            pystray.MenuItem("Exit METIS Analytics", exit_metis),
         ),
     )
 
@@ -282,7 +282,7 @@ def start_tray_icon(controller: AppController):
     icon = create_tray_icon(controller)
     threading.Thread(
         target=icon.run,
-        name="vibraport-system-tray",
+        name="metis-system-tray",
         daemon=True,
     ).start()
     return icon
@@ -300,7 +300,7 @@ def managed_server_class(base_server, controller: AppController):
 
 
 def run_streamlit(instance_guard: SingleInstanceGuard | None = None) -> None:
-    """Run Vibraport on localhost until the user closes the process."""
+    """Run METIS Analytics on localhost until the user closes the process."""
 
     from streamlit.web import bootstrap
 
@@ -344,9 +344,9 @@ def show_startup_error(message: str) -> None:
     if sys.platform == "win32":
         import ctypes
 
-        ctypes.windll.user32.MessageBoxW(0, message, "Vibraport startup error", 0x10)
+        ctypes.windll.user32.MessageBoxW(0, message, "METIS Analytics startup error", 0x10)
     else:
-        print(f"Vibraport startup error: {message}", file=sys.stderr)
+        print(f"METIS Analytics startup error: {message}", file=sys.stderr)
 
 
 def main() -> int:
@@ -356,9 +356,9 @@ def main() -> int:
             if instance_guard.open_existing():
                 return 0
             show_startup_error(
-                "Vibraport is already running, but its browser interface "
+                "METIS Analytics is already running, but its browser interface "
                 "could not be reopened. Use the system-tray icon or end the "
-                "existing Vibraport process in Task Manager."
+                "existing METIS Analytics process in Task Manager."
             )
             return 1
         run_streamlit(instance_guard)

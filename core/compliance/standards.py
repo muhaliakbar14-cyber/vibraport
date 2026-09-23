@@ -1,7 +1,7 @@
 """Definitions and limit functions for supported vibration standards.
 
 The constants below are derived from the editions named in each standard id.
-They intentionally model only building-damage assessments used by Vibraport:
+They intentionally model only building-damage assessments used by METIS Analytics:
 
 * SNI 7571:2023 Table 4
 * DIN 4150-3:2016-12, Tables 1 and 4
@@ -212,7 +212,7 @@ def measurement_explanation(standard_id: str, assessment: str) -> str:
         return (
             measurement_basis(standard_id, assessment)
             + " For Line 2 below 4 Hz, BS 7385-2 requires a 0.6 mm zero-to-peak "
-              "displacement check, so Vibraport reports Review instead of PPV compliance."
+              "displacement check, so METIS Analytics reports Review instead of PPV compliance."
         )
     return (
         measurement_basis(standard_id, assessment)

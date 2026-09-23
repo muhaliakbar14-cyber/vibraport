@@ -99,7 +99,7 @@ def _compute_displacement(df: pd.DataFrame, velocity_cols: list, sampling_rate: 
 
 def parse_sis_file(file_bytes: bytes) -> tuple:
     """
-    Parse a Vibracord .sis binary file and convert to Vibraport's standard format.
+    Parse a Vibracord .sis binary file and convert to METIS Analytics' standard format.
 
     Returns the same 4-tuple as parse_file():
         metadata      (dict)         — recording info
@@ -107,7 +107,7 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
         time_axis     (np.ndarray)   — time in seconds
         sampling_rate (int)          — samples per second
 
-    The df columns follow Vibraport naming conventions:
+    The df columns follow METIS Analytics naming conventions:
         Velocity channels  : 'Vertical (mm/s)', 'Longitudinal (mm/s)', 'Transversal (mm/s)'
         Pressure channel   : 'Channel N (Pa)'
         Acceleration       : 'A_Vert (mm/s²)', etc. (derived)
@@ -120,7 +120,7 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
 
     r = parse_sis(file_bytes)
 
-    # ── Build metadata dict matching Vibraport conventions ────────────────────
+    # ── Build metadata dict matching METIS Analytics conventions ────────────
     metadata = {
         'Date':            r['date'], 
         'Time':            r['time'],
@@ -169,7 +169,7 @@ def parse_sis_file(file_bytes: bytes) -> tuple:
 
 def _build_waveform_df(r: dict, sampling_rate: int) -> pd.DataFrame:
     """
-    Convert waveform data from sis_parser output into a Vibraport-standard DataFrame.
+    Convert waveform data from sis_parser output into a METIS Analytics-standard DataFrame.
 
     Channel naming strategy:
     - Physical velocity Block 1: Vertical (mm/s), Longitudinal (mm/s), Transversal (mm/s)
@@ -257,7 +257,7 @@ def _build_waveform_df(r: dict, sampling_rate: int) -> pd.DataFrame:
 
 def _build_bargraph_df(r: dict) -> pd.DataFrame:
     """
-    Convert bargraph data into a Vibraport-standard DataFrame.
+    Convert bargraph data into a METIS Analytics-standard DataFrame.
     Each row = one monitoring interval.
     Columns: time_s, then per-channel amplitude and frequency.
     """

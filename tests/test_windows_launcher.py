@@ -12,7 +12,7 @@ def test_bundle_root_points_to_checkout_in_development():
     expected = Path(launcher_windows.__file__).resolve().parent
     assert launcher_windows.bundle_root() == expected
     assert launcher_windows.app_script() == expected / "app.py"
-    assert launcher_windows.app_icon() == expected / "assets" / "icons" / "vibraport-logo.png"
+    assert launcher_windows.app_icon() == expected / "assets" / "icons" / "metis-icon.png"
 
 
 def test_find_available_port_returns_bindable_local_port():
@@ -124,9 +124,9 @@ def test_tray_menu_opens_browser_and_stops_server(monkeypatch):
     open_item.action(icon, open_item)
     exit_item.action(icon, exit_item)
 
-    assert open_item.text == "Open Vibraport"
+    assert open_item.text == "Open METIS Analytics"
     assert open_item.default is True
-    assert exit_item.text == "Exit Vibraport"
+    assert exit_item.text == "Exit METIS Analytics"
     assert opened == [True]
     assert shutdown == [True]
     assert icon.stopped is True

@@ -3,7 +3,9 @@
 Last updated: 2026-09-23.
 
 ## Product Direction
-- Vibraport remains a Streamlit-first vibration-analysis application; no framework rewrite is currently planned.
+- The product is now branded **METIS Analytics**, with the descriptor
+  **Vibration Analysis Software**. It remains a Streamlit-first application;
+  no framework rewrite is currently planned.
 - The active product supports local/offline browser use now and can later be deployed online. A SaaS/authentication layer is deferred until the engineering workflow is stable.
 - Primary priorities are reliable `.sis`/`.csv` handling, correct engineering calculations, professional reports, and clear compliance results.
 
@@ -24,7 +26,7 @@ Last updated: 2026-09-23.
   availability, virtual-channel state, and over-range state.
 - Unflagged bargraph amplitudes are explicitly treated as
   instrument-reported **Interval peak** values; Tellus RMS flags are preserved
-  as RMS. Vibraport does not infer RMS or VDV from peak-velocity bars.
+  as RMS. METIS Analytics does not infer RMS or VDV from peak-velocity bars.
 - The monitoring Data Overview shows duration, interval, channel capabilities,
   data-quality warnings, full-resolution maximum/mean/median/P95/P99 values,
   and frequency at the maximum.
@@ -81,6 +83,8 @@ Last updated: 2026-09-23.
 
 ## Reporting and Presentation
 - `pages/report.py` generates the active professional PDF report.
+- Waveform and monitoring PDFs use METIS Analytics in document metadata,
+  headers, footers, UI labels, and download filenames.
 - Print Report dispatches bargraph files to `pages/monitoring_report.py` instead
   of blocking them as non-waveform input. The monitoring report always includes
   a cover and lets users independently include Monitoring Overview, Aggregated
@@ -155,15 +159,26 @@ Last updated: 2026-09-23.
   packaged executable shown in the failure report can be retested.
 
 ## Windows Packaging Track
+- The portable product directory and executable are now
+  `dist/METIS Analytics/METIS Analytics.exe`. The system tray, mutex,
+  local-state directory, startup errors, and Open/Exit labels use the new
+  product name.
+- `assets/icons/metis-icon.png` is the circular owl/wave mark shared with the
+  logogram; `metis-logogram.png` carries the exact descriptor
+  `VIBRATION ANALYSIS SOFTWARE`; `metis.ico` contains 16-256 px Windows sizes.
 - Windows packaging work remains isolated on branch `windows-packaging`, which
   now also incorporates the application changes pushed to `main` at `e023c0e`.
 - `launcher_windows.py` runs Streamlit in-process, avoids a terminal subprocess
   dependency, opens the browser only after the health endpoint is ready, and
   shows a native Windows error dialog on startup failure.
 - The pinned Windows manifest, PyInstaller spec, and PowerShell build script are implemented. All pinned direct and transitive dependencies resolve to CPython 3.12/Windows x64 wheels, including Kaleido's Windows runtime.
-- The launcher has a native Windows tray with **Open Vibraport** and **Exit Vibraport**. Exit calls Streamlit's graceful server stop; closing only the browser leaves the app available in the tray.
+- The launcher has a native Windows tray with **Open METIS Analytics** and
+  **Exit METIS Analytics**. Exit calls Streamlit's graceful server stop;
+  closing only the browser leaves the app available in the tray.
 - A named Windows mutex enforces a single process. Later launches read the validated localhost URL published by the primary process, reopen it in the browser, and exit.
-- A two-color Vibraport V/wave logo is integrated as the Windows executable icon, tray icon, and browser favicon.
+- The circular METIS owl/wave emblem is integrated as the Windows executable
+  icon, tray icon, and browser favicon; the matching logogram appears in the
+  Streamlit sidebar and welcome screen.
 - The user successfully built the prior native Windows portable bundle and
   confirmed its tray lifecycle, single-instance behavior, and clean-machine/
   offline operation. ZIP distribution is functional; an installer remains an
@@ -174,7 +189,8 @@ Last updated: 2026-09-23.
 - `main` is pushed at `e023c0e` with the corrected DIN chart and bargraph
   monitoring/report implementation.
 - Windows packaging source and tests are maintained on the separate
-  `windows-packaging` branch, synchronized with `main` for Windows rebuilds.
+  `windows-packaging` branch. Its last pushed PDF-recovery/test commit is
+  `4deb5e3`; the METIS Analytics rebrand is not yet committed or pushed.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.
 - The next engineering task is domain review of DIN/BS wording and screening
   policy, followed by broader bargraph fixture validation across equipment types.
