@@ -166,6 +166,9 @@ Last updated: 2026-09-23.
 - `assets/icons/metis-icon.png` is the circular owl/wave mark shared with the
   logogram; `metis-logogram.png` carries the exact descriptor
   `VIBRATION ANALYSIS SOFTWARE`; `metis.ico` contains 16-256 px Windows sizes.
+- The production PNG assets are the user's supplied masters, copied without
+  image modification: 1024x1024 RGBA for the icon and 2400x800 RGBA for the
+  logogram. The logogram includes `METIS Analytics™` and the approved tagline.
 - Windows packaging work remains isolated on branch `windows-packaging`, which
   now also incorporates the application changes pushed to `main` at `e023c0e`.
 - `launcher_windows.py` runs Streamlit in-process, avoids a terminal subprocess

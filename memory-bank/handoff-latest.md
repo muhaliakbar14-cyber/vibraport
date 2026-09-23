@@ -21,6 +21,13 @@
   waveform and five-page monitoring PDFs were raster-rendered and visually
   inspected with clean METIS Analytics headers/footers.
 - The rebrand is committed and pushed on `windows-packaging` at `26b129c`.
+- The initially generated artwork has now been replaced by the user's final
+  production masters: `metis-icon.png` (1024x1024 RGBA) and
+  `metis-logogram.png` (2400x800 RGBA). Repository copies match the supplied
+  files byte-for-byte; only the Windows ICO was mechanically derived.
+- Live Streamlit visual inspection confirmed the exact supplied logogram fits
+  the sidebar and welcome screen, with the ™ and tagline legible and no browser
+  errors. Full suite: **139 passed**.
 
 ## PDF Chart-Renderer Recovery
 - Fixed intermittent waveform and monitoring PDF failures where Kaleido image

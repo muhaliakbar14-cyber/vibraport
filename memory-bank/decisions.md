@@ -253,3 +253,7 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
   state, documentation, and distributable outputs.
 - Why: this completes the visible rebrand without breaking existing clones,
   build commands, or historical traceability.
+- Decision: treat the user's supplied 1024x1024 icon and 2400x800 logogram as
+  definitive production artwork. Copy the PNGs byte-for-byte; do not regenerate,
+  retouch, crop, recolor, or resize them. Only derive the multi-resolution ICO
+  required by Windows packaging.

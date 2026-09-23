@@ -16,10 +16,12 @@ Last updated: 2026-09-23.
 - `requirements-windows.txt`: pinned CPython 3.12 application, test, PyInstaller, and `pystray` dependencies for reproducible Windows x64 builds.
 - `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It includes the dynamically loaded `app.py`, application packages, Streamlit/Plotly/Kaleido data and binaries, configuration, fonts, logo assets, Windows tray backend, and executable icon under the `_internal` runtime directory.
 - `assets/icons/metis-icon.png`: circular navy/cyan/white owl-and-wave mark
-  used for the browser favicon and Windows tray.
+  used for the browser favicon and Windows tray. Its 1024x1024 PNG is the
+  user-supplied production master and must not be visually altered.
 - `assets/icons/metis-logogram.png`: horizontal METIS Analytics brand lockup
   with the descriptor `VIBRATION ANALYSIS SOFTWARE`, used in the Streamlit
-  sidebar and welcome screen.
+  sidebar and welcome screen. Its 2400x800 PNG is the user-supplied production
+  master and must not be visually altered.
 - `assets/icons/metis.ico`: multi-resolution 16–256 px Windows executable icon.
 - `packaging/build_windows.ps1`: Windows-only build entrypoint. It creates `.venv-windows`, installs the pinned dependencies, runs the full test suite, builds the portable bundle, and checks required outputs.
 - Target portable artifact: `dist/METIS Analytics/METIS Analytics.exe`; the portable bundle

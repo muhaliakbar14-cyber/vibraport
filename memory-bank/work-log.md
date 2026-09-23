@@ -484,3 +484,14 @@
     every header/footer, page number, table, and section transition remained
     unclipped and legible.
 - Committed and pushed the rebrand on `windows-packaging` at `26b129c`.
+
+## 2026-09-23 — Install user-supplied final METIS artwork
+- Replaced the generated production assets with the user's definitive files:
+  a 1024x1024 RGBA icon and 2400x800 RGBA logogram.
+- Copied both PNGs without modification and verified the repository copies have
+  identical SHA-256 hashes to the supplied originals.
+- Mechanically rebuilt the 16, 24, 32, 48, 64, 128, and 256 px Windows ICO
+  layers from the supplied icon; no creative image changes were made.
+- Validation: full `pytest -q` **139 passed**; fresh live Streamlit inspection
+  showed the supplied artwork correctly in the sidebar and welcome screen with
+  no browser errors.
