@@ -28,6 +28,7 @@
 - Live Streamlit visual inspection confirmed the exact supplied logogram fits
   the sidebar and welcome screen, with the ™ and tagline legible and no browser
   errors. Full suite: **139 passed**.
+- The user-supplied final artwork is committed and pushed at `037244e`.
 
 ## PDF Chart-Renderer Recovery
 - Fixed intermittent waveform and monitoring PDF failures where Kaleido image
