@@ -436,8 +436,8 @@
 - Updated waveform and monitoring report errors to describe failure only after
   automatic recovery and provide an actionable packaged-app restart step.
 - Added `tests/test_report_image_export.py` for retry success, retry exhaustion,
-  post-timeout pool health, process-kill fallback, and a two-real-SIS report
-  with every optional waveform section.
+  post-timeout pool health, process-kill fallback, and a synthetic two-file
+  report with every optional waveform section.
 - Validation:
   - Python compilation: passed.
   - Focused report/packaging suite: **12 passed**.
@@ -451,3 +451,13 @@
     logs contained no warnings or errors.
 - Native Windows rebuild/retest remains because the previously built portable
   executable cannot contain an uncommitted source fix.
+
+## 2026-09-23 — Make PDF regression fixture portable to clean Windows checkouts
+- The first Windows rebuild after the renderer fix stopped at the test gate
+  because `test_real_sis_multi_file_report_with_every_optional_section` read
+  from ignored `testfile-sis/` data. Those files existed only in the Linux
+  working copy and were correctly absent from a clean Windows clone.
+- Replaced the local-file dependency with two deterministic, generated
+  waveform records containing velocity, acceleration, displacement, frequency,
+  and report metadata. The test still covers the multi-file summary and every
+  optional waveform report section without committing customer measurements.

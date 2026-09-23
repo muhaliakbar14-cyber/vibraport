@@ -11,7 +11,8 @@
 - A timed-out renderer no longer leaves both pool workers occupied and later
   report attempts permanently broken.
 - Added focused tests for timeout recovery, retry exhaustion, later-export
-  health, process termination, and a real two-SIS/all-sections report build.
+  health, process termination, and a synthetic two-file/all-sections report
+  build that is portable across clean checkouts.
 - Full suite: **139 passed**. A real Kaleido two-file report generated seven
   pages, and the live Streamlit flow reached `Report ready!` with clean browser
   and server logs.
