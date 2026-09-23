@@ -265,7 +265,10 @@ def render(df, time_axis, metadata, sampling_rate):
                     options,
                 )
         except ImageExportTimeoutError as exc:
-            st.error(f"PDF chart rendering timed out: {exc}")
+            st.error(
+                f"PDF generation could not recover the chart renderer: {exc} "
+                "Exit Vibraport from the tray, reopen it, and try once more."
+            )
         except (ImportError, RuntimeError, ValueError) as exc:
             st.error(f"Monitoring report generation failed: {exc}")
         else:

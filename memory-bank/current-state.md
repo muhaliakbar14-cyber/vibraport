@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-23.
 
 ## Product Direction
 - Vibraport remains a Streamlit-first vibration-analysis application; no framework rewrite is currently planned.
@@ -90,6 +90,10 @@ Last updated: 2026-09-08.
   use the shared SNI/DIN/BS selectors and evaluate every eligible stored
   interval before summarizing the worst point per channel.
 - Plotly image export is bounded by a timeout so Kaleido cannot leave report generation spinning indefinitely.
+- The bounded exporter now allows 60 seconds for slow Windows cold starts,
+  serializes calls to Kaleido's shared process, and automatically terminates,
+  resets, and retries the renderer once after a timeout. Timed-out worker
+  threads no longer accumulate and poison later report attempts.
 - PDF reports include source Notes 1-3 in the top-right header, shared waveform scales, professional Inter fonts, Record Values/PVS, and the selected compliance chart plus measurement-basis explanation.
 - CSV report generation calculates a fallback dominant frequency when device metadata does not provide one.
 - SNI, DIN, and BS report variants were rendered and visually inspected on 2026-08-31.
@@ -142,6 +146,13 @@ Last updated: 2026-09-08.
 - A representative five-page all-sections report was raster-rendered and
   visually checked for headers/footers, page numbering, chart clarity, table
   fit, clipping, and section transitions.
+- On 2026-09-23, the chart-renderer recovery regression suite and full suite
+  passed (**139 tests**). A real two-file waveform report with Records Summary,
+  Acceleration/Displacement, FFT, and SNI compliance generated as a seven-page
+  PDF using actual Kaleido. The same flow passed in live Streamlit with a
+  visible download control and no browser or server errors.
+- The source fix still requires a new native Windows portable build before the
+  packaged executable shown in the failure report can be retested.
 
 ## Windows Packaging Track
 - Windows packaging work remains isolated on branch `windows-packaging`, which

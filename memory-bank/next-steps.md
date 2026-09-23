@@ -1,12 +1,15 @@
 # Next Steps
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-23.
 
 ## Immediate
-1. Ask a vibration engineer to review the DIN/BS category wording,
+1. Rebuild the native Windows portable bundle and repeat the previously failing
+   two-file/all-sections waveform PDF workflow. Confirm both the first report
+   and a second report in the same app session complete successfully.
+2. Ask a vibration engineer to review the DIN/BS category wording,
    measurement-basis explanations, and the conservative BS Long-term screening
    policy before treating the output as certification-grade.
-2. Validate the normalized monitoring and configurable report paths against
+3. Validate the normalized monitoring and configurable report paths against
    representative Gaia, FX, and DX bargraph files without committing customer
    data.
 

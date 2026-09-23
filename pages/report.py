@@ -11,9 +11,12 @@ only surfaces when the user actually clicks Generate PDF.
 
 from __future__ import annotations
 
+import concurrent.futures
 import io
 import math
-import concurrent.futures
+import os
+import subprocess
+import threading
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
@@ -48,31 +51,110 @@ from config import DEFAULT_FREQUENCY_METHOD, LOW_AMPLITUDE_THRESHOLD
 # indefinitely with zero error when Chrome fails to start/respond — common on
 # Streamlit Community Cloud if Kaleido can't find a Chrome binary. There's no
 # built-in timeout, so a stuck call previously meant "Generate PDF" spun
-# forever with no feedback. We bound every export with a timeout and raise a
-# real, catchable error instead. See requirements.txt for the matching
-# kaleido version pin.
+# forever with no feedback. Every export is bounded; a timeout now resets the
+# renderer and retries once. See requirements.txt for the matching pin.
 
 class ImageExportTimeoutError(RuntimeError):
     pass
 
 
-_IMG_EXPORT_TIMEOUT_S = 25
-_img_export_pool = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="kaleido-export")
+_IMG_EXPORT_TIMEOUT_S = 60
+_IMG_EXPORT_ATTEMPTS = 2
+_IMG_EXPORT_RECOVERY_WAIT_S = 5
+
+# Kaleido 0.2.x uses one shared subprocess internally and serializes access to
+# it. A single worker mirrors that constraint, while this lock prevents one
+# Streamlit session from restarting Kaleido underneath another session's
+# export.
+_img_export_pool = concurrent.futures.ThreadPoolExecutor(
+    max_workers=1,
+    thread_name_prefix="kaleido-export",
+)
+_img_export_lock = threading.Lock()
+
+
+def _get_kaleido_scope():
+    """Return Plotly's shared Kaleido scope without importing it at startup."""
+
+    from plotly.io import kaleido
+
+    return kaleido.scope
+
+
+def _terminate_process_tree(process) -> None:
+    """Stop the Kaleido/Chromium process tree without touching Streamlit."""
+
+    if process is None or process.poll() is not None:
+        return
+
+    if os.name == "nt":
+        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        try:
+            subprocess.run(
+                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=_IMG_EXPORT_RECOVERY_WAIT_S,
+                creationflags=creationflags,
+            )
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+    if process.poll() is None:
+        try:
+            process.kill()
+        except OSError:
+            pass
+
+
+def _recover_timed_out_export(future) -> bool:
+    """Terminate a wedged Kaleido process and release its export worker."""
+
+    try:
+        scope = _get_kaleido_scope()
+    except (ImportError, AttributeError):
+        scope = None
+
+    process = getattr(scope, "_proc", None) if scope is not None else None
+    _terminate_process_tree(process)
+
+    # Killing Kaleido closes its stdout pipe, which lets the thread blocked in
+    # readline() unwind and release Kaleido's process lock.
+    try:
+        future.result(timeout=_IMG_EXPORT_RECOVERY_WAIT_S)
+    except Exception:
+        pass
+
+    if not future.done():
+        return False
+
+    shutdown = getattr(scope, "_shutdown_kaleido", None) if scope is not None else None
+    if callable(shutdown):
+        try:
+            shutdown()
+        except Exception:
+            pass
+    return True
 
 
 def _to_image(fig, **kwargs) -> bytes:
-    future = _img_export_pool.submit(fig.to_image, **kwargs)
-    try:
-        return future.result(timeout=_IMG_EXPORT_TIMEOUT_S)
-    except concurrent.futures.TimeoutError:
-        future.cancel()
-        raise ImageExportTimeoutError(
-            f"Chart image export did not finish within {_IMG_EXPORT_TIMEOUT_S}s. "
-            "This usually means Kaleido/Chrome failed to start in this environment "
-            "— check the kaleido version pin in requirements.txt."
-        )
-    except Exception as exc:
-        raise RuntimeError(f"Chart image export failed: {exc}") from exc
+    with _img_export_lock:
+        for attempt in range(1, _IMG_EXPORT_ATTEMPTS + 1):
+            future = _img_export_pool.submit(fig.to_image, **kwargs)
+            try:
+                return future.result(timeout=_IMG_EXPORT_TIMEOUT_S)
+            except concurrent.futures.TimeoutError:
+                recovered = _recover_timed_out_export(future)
+                if attempt < _IMG_EXPORT_ATTEMPTS and recovered:
+                    continue
+                raise ImageExportTimeoutError(
+                    "Chart image export stopped responding. Vibraport terminated "
+                    f"Kaleido and made {_IMG_EXPORT_ATTEMPTS} attempts with a "
+                    f"{_IMG_EXPORT_TIMEOUT_S}-second limit per attempt."
+                ) from None
+            except Exception as exc:
+                raise RuntimeError(f"Chart image export failed: {exc}") from exc
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -167,10 +249,9 @@ def render(df, time_axis, metadata, sampling_rate,
                 pdf_bytes = _build_vibraport_pdf(files, options)
         except ImageExportTimeoutError as e:
             st.error(
-                f"⚠️ PDF generation timed out while rendering a chart: {e} "
-                "If this keeps happening, it's very likely a Kaleido/Chrome "
-                "problem in this deployment — see the comment above kaleido "
-                "in requirements.txt."
+                f"⚠️ PDF generation could not recover the chart renderer: {e} "
+                "Exit Vibraport from the tray, reopen it, and try once more. "
+                "If the same file still fails, keep its filename available for diagnosis."
             )
             return
         except ImportError as e:

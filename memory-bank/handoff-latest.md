@@ -1,4 +1,23 @@
-# Latest Handoff (2026-09-08)
+# Latest Handoff (2026-09-23)
+
+## PDF Chart-Renderer Recovery
+- Fixed intermittent waveform and monitoring PDF failures where Kaleido image
+  export exceeded the former 25-second timeout.
+- The exporter now uses one worker for Kaleido's one shared subprocess, allows
+  60 seconds per attempt, and retries once after terminating the wedged
+  Kaleido/Chromium process tree and clearing the shared renderer.
+- Timeout cleanup uses Windows `taskkill /T /F` for the renderer tree, with a
+  direct-process fallback on other platforms. Streamlit itself is not stopped.
+- A timed-out renderer no longer leaves both pool workers occupied and later
+  report attempts permanently broken.
+- Added focused tests for timeout recovery, retry exhaustion, later-export
+  health, process termination, and a real two-SIS/all-sections report build.
+- Full suite: **139 passed**. A real Kaleido two-file report generated seven
+  pages, and the live Streamlit flow reached `Report ready!` with clean browser
+  and server logs.
+- Remaining release check: rebuild the native Windows bundle and repeat the
+  exact failing workflow; the existing executable does not contain this source
+  fix.
 
 ## Completed
 - Vibraport remains a Streamlit application with `.sis`/`.csv`, dual-block
@@ -143,11 +162,13 @@
   and `work-log`.
 
 ## Immediate Next Task
-1. Ask a vibration engineer to review DIN/BS category wording, measurement
+1. Rebuild the native Windows portable bundle and validate two consecutive
+   multi-file/all-sections waveform reports in one app session.
+2. Ask a vibration engineer to review DIN/BS category wording, measurement
    explanations, and the conservative BS Long-term screening policy.
-2. Validate normalized monitoring/report behavior against representative Gaia,
+3. Validate normalized monitoring/report behavior against representative Gaia,
    FX, and DX bargraph fixtures without committing customer data.
-3. Keep the already validated Windows packaging/installer track separate.
+4. Keep optional installer work separate.
 
 ## Guardrails for the Next Session
 - Read `memory-bank/current-state.md`, `decisions.md`, `next-steps.md`, and this file first.

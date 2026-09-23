@@ -223,3 +223,19 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
   instead of invoking the external `pdftotext` command.
 - Why: the Windows packaging script runs the complete test suite on a clean
   Windows host, where Poppler is not an application or build prerequisite.
+
+## 2026-09-23 — Recoverable Kaleido report rendering
+- Decision: keep the offline-compatible Plotly 5.24.1/Kaleido 0.2.1 pairing,
+  but serialize all image exports through one worker, allow 60 seconds per
+  attempt, and retry once after forcibly terminating and resetting a timed-out
+  Kaleido/Chromium process tree.
+- Why: Kaleido 0.2.x has one shared subprocess. The former two-thread pool
+  timed out after 25 seconds but `Future.cancel()` could not stop a running
+  export, leaving stuck workers and Chromium children behind. Repeated failures
+  could permanently fill the pool. A longer cold-start allowance plus explicit
+  renderer cleanup recovers transient Windows startup stalls without restoring
+  the old unbounded hang.
+- Decision: do not migrate this fix to Kaleido 1.x.
+- Why: current Kaleido 1.x requires a separately installed or bundled Chrome,
+  which would change the already validated self-contained/offline Windows
+  packaging contract and requires a separate packaging migration.

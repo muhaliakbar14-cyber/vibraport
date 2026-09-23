@@ -419,3 +419,35 @@
 - Validation:
   - Synchronized Windows-branch full suite: **134 passed**.
   - Python compilation and `git diff --check`: passed.
+
+## 2026-09-23 — Recover intermittent PDF chart-renderer timeouts
+- Diagnosed the screenshot failure at `pages/report.py::_to_image`: the former
+  25-second timeout called `Future.cancel()`, which cannot cancel a running
+  Kaleido export. The stuck thread and Chromium child remained alive; after two
+  such failures the two-worker pool could stay full and make every later report
+  fail. Slow Windows cold starts could also cross the fixed 25-second boundary.
+- Changed the shared exporter to one serialized worker, matching Kaleido 0.2.x's
+  single shared subprocess.
+- Increased the bounded attempt to 60 seconds and added one automatic retry.
+- On timeout, Vibraport now terminates the renderer process tree, waits for the
+  blocked export thread to unwind, clears Kaleido's shared scope, and starts a
+  fresh renderer for the retry. Windows uses `taskkill /PID ... /T /F` so the
+  bundled Chromium children are removed as well as the shell process.
+- Updated waveform and monitoring report errors to describe failure only after
+  automatic recovery and provide an actionable packaged-app restart step.
+- Added `tests/test_report_image_export.py` for retry success, retry exhaustion,
+  post-timeout pool health, process-kill fallback, and a two-real-SIS report
+  with every optional waveform section.
+- Validation:
+  - Python compilation: passed.
+  - Focused report/packaging suite: **12 passed**.
+  - Full `pytest -q`: **139 passed**.
+  - `git diff --check`: passed.
+  - Direct real Kaleido PNG export: passed in about 0.67 seconds.
+  - Direct two-file/all-sections waveform report: seven pages, about 1.0 MB.
+  - Live Streamlit: uploaded two real SIS fixtures, selected both, enabled
+    Records Summary, Acceleration/Displacement, and FFT, generated the report,
+    and reached `Report ready!` with a download button. Browser and Streamlit
+    logs contained no warnings or errors.
+- Native Windows rebuild/retest remains because the previously built portable
+  executable cannot contain an uncommitted source fix.

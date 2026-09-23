@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-09-08.
+Last updated: 2026-09-23.
 
 ## Runtime and Routing
 - `app.py`: Streamlit entrypoint, file manager/session registry,
@@ -41,6 +41,11 @@ Last updated: 2026-09-08.
 
 ## Report Pipeline
 - `pages/report.py` builds ReportLab PDFs and exports Plotly figures through bounded Kaleido calls.
+- Plotly image export is serialized around Kaleido's single shared subprocess.
+  A chart gets up to 60 seconds per attempt; a timeout terminates the wedged
+  Kaleido/Chromium process tree, clears the shared renderer, and retries once.
+  This prevents a timed-out export from permanently occupying the report
+  worker and breaking later report attempts.
 - `pages/monitoring_report.py` builds active-file bargraph PDFs with selectable
   overview, aggregated-trend, operational-event, and PPV-compliance sections.
   It calls the same full-resolution monitoring helpers and shared compliance
