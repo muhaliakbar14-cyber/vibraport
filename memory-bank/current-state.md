@@ -189,8 +189,8 @@ Last updated: 2026-09-23.
 - `main` is pushed at `e023c0e` with the corrected DIN chart and bargraph
   monitoring/report implementation.
 - Windows packaging source and tests are maintained on the separate
-  `windows-packaging` branch. Its last pushed PDF-recovery/test commit is
-  `4deb5e3`; the METIS Analytics rebrand is not yet committed or pushed.
+  `windows-packaging` branch. The METIS Analytics rebrand is committed and
+  pushed at `26b129c`.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.
 - The next engineering task is domain review of DIN/BS wording and screening
   policy, followed by broader bargraph fixture validation across equipment types.

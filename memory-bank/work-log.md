@@ -450,7 +450,7 @@
     and reached `Report ready!` with a download button. Browser and Streamlit
     logs contained no warnings or errors.
 - Native Windows rebuild/retest remains because the previously built portable
-  executable cannot contain an uncommitted source fix.
+  executable predates the source fix.
 
 ## 2026-09-23 — Make PDF regression fixture portable to clean Windows checkouts
 - The first Windows rebuild after the renderer fix stopped at the test gate
@@ -483,3 +483,4 @@
   - Seven-page waveform and five-page monitoring PDFs were rendered to images;
     every header/footer, page number, table, and section transition remained
     unclipped and legible.
+- Committed and pushed the rebrand on `windows-packaging` at `26b129c`.

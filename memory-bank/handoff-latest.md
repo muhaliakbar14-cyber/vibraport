@@ -20,7 +20,7 @@
   generation reached `Report ready!` with no browser errors; seven-page
   waveform and five-page monitoring PDFs were raster-rendered and visually
   inspected with clean METIS Analytics headers/footers.
-- The rebrand is currently uncommitted and unpushed.
+- The rebrand is committed and pushed on `windows-packaging` at `26b129c`.
 
 ## PDF Chart-Renderer Recovery
 - Fixed intermittent waveform and monitoring PDF failures where Kaleido image
@@ -109,8 +109,8 @@
 - The monitoring/report work is committed and pushed on `main` at `e023c0e`.
 - Active branch: `windows-packaging`.
 - The prior Vibraport tray/single-instance implementation was committed at
-  `483a290`. PDF recovery and its portable test are pushed through `4deb5e3`;
-  the METIS Analytics rebrand is the current uncommitted working-tree change.
+  `483a290`. PDF recovery and its portable test are pushed through `4deb5e3`,
+  and the METIS Analytics rebrand is pushed at `26b129c`.
 - The branch contains the launcher, pinned Windows manifest, PyInstaller spec,
   PowerShell build script, launcher/packaging tests, `.venv-windows` ignore
   rule, and synchronized main-application code.
@@ -187,9 +187,8 @@
   and `work-log`.
 
 ## Immediate Next Task
-1. Review the uncommitted rebrand, then commit/push it only when explicitly
-   requested. Rebuild the renamed native Windows portable bundle and validate
-   two consecutive multi-file/all-sections waveform reports in one app session.
+1. Rebuild the renamed native Windows portable bundle and validate two
+   consecutive multi-file/all-sections waveform reports in one app session.
 2. Ask a vibration engineer to review DIN/BS category wording, measurement
    explanations, and the conservative BS Long-term screening policy.
 3. Validate normalized monitoring/report behavior against representative Gaia,
