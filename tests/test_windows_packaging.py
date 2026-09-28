@@ -50,6 +50,8 @@ def test_build_script_enforces_windows_and_verifies_bundle_outputs():
     assert "-m pytest -q" in script
     assert "-m PyInstaller" in script
     assert 'Join-Path $BundleRoot "METIS Analytics.exe"' in script
+    assert 'PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md' in script
+    assert "Copy-Item -Path $UserGuide" in script
     assert 'Join-Path $RuntimeRoot "app.py"' in script
     assert "$BundledBrowsers" in script
     assert '"chrome.exe", "msedge.exe", "chromium.exe"' in script

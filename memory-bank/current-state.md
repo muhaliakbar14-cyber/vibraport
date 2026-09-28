@@ -82,6 +82,11 @@ Last updated: 2026-09-28.
   copy of any standard limit curve.
 
 ## Reporting and Presentation
+- An Indonesian end-user guide is maintained at
+  `docs/PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md`. It covers portable RAR
+  extraction, tray lifecycle, data workflows, PDF generation/interpretation,
+  compliance statuses, troubleshooting, and explicit Brave/Chromium
+  `BROWSER_PATH` setup. The Windows build copies it to the portable bundle root.
 - `pages/report.py` generates the active professional PDF report.
 - Waveform and monitoring PDFs use METIS Analytics in document metadata,
   headers, footers, UI labels, and download filenames.

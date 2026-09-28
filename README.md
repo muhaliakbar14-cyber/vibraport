@@ -96,6 +96,9 @@ powershell -ExecutionPolicy Bypass -File .\packaging\build_windows.ps1
 
 Hasil portable berada di `dist\METIS Analytics\`. Seluruh folder harus disalin;
 `METIS Analytics.exe` memerlukan isi folder `_internal` di sebelahnya.
+Panduan pengguna akhir tersedia di
+`docs/PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md` dan otomatis disalin ke akar
+folder hasil build.
 
 Saat dijalankan, METIS Analytics menampilkan ikon di Windows system tray dan membuka
 antarmuka lokal di browser. Menutup tab browser tidak menghentikan aplikasi.

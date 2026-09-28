@@ -564,3 +564,19 @@
 - Validation: filtered discovery collected 14 Kaleido runtime modules with no
   mocker descendants; focused suite **32 passed, 1 skipped**; complete suite
   **153 passed, 1 skipped**; spec compilation and `git diff --check` passed.
+
+## 2026-09-28 — Add Indonesian end-user guide
+- Added `docs/PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md` covering extraction of the
+  portable RAR, required folder structure, startup/tray lifecycle, upload and
+  navigation, waveform/bargraph analysis, PDF creation, and report reading.
+- Documented automatic Chrome/Edge PDF rendering, the distinction from the
+  Windows default UI browser, persistent Brave/Chromium configuration through
+  `BROWSER_PATH`, Firefox limitations, renderer diagnostics, and actionable
+  troubleshooting.
+- Updated the Windows build script to copy the guide beside
+  `METIS Analytics.exe` and treat it as a required bundle output; added a
+  packaging regression assertion and linked the guide from README.
+- Simplified the final guide to 197 lines/953 words while retaining extraction,
+  browser, workflow, report-reading, troubleshooting, and checklist content.
+  Validation: packaging/launcher tests **16 passed**; complete suite **153
+  passed, 1 skipped**; `git diff --check` passed.

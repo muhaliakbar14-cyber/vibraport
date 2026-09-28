@@ -59,6 +59,12 @@
   arguments. The spec now filters `kaleido.mocker` and its descendants from
   hidden-import discovery; METIS uses Kaleido's runtime APIs and never imports
   the mocker package.
+- Added `docs/PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md`, an Indonesian end-user
+  guide from extracting `Metis Analytics.rar` through interpreting waveform
+  and monitoring reports. It explains the separation between the UI browser
+  and PDF renderer, automatic Chrome/Edge selection, explicit Brave/Chromium
+  `BROWSER_PATH`, Firefox limitations, diagnostics, and troubleshooting. The
+  Windows build copies the guide beside `METIS Analytics.exe` and verifies it.
 
 ## METIS Analytics Rebrand
 - Rebranded the active application from Vibraport to **METIS Analytics**, named

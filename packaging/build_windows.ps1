@@ -11,6 +11,7 @@ $BuildVenv = Join-Path $RepoRoot ".venv-windows"
 $Python = Join-Path $BuildVenv "Scripts\python.exe"
 $Requirements = Join-Path $RepoRoot "requirements-windows.txt"
 $Spec = Join-Path $RepoRoot "packaging\vibraport_windows.spec"
+$UserGuide = Join-Path $RepoRoot "docs\PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md"
 $DistPath = Join-Path $RepoRoot "dist"
 $WorkPath = Join-Path $RepoRoot "build"
 
@@ -64,8 +65,11 @@ try {
 
     $BundleRoot = Join-Path $DistPath "METIS Analytics"
     $RuntimeRoot = Join-Path $BundleRoot "_internal"
+    $BundledUserGuide = Join-Path $BundleRoot "PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md"
+    Copy-Item -Path $UserGuide -Destination $BundledUserGuide -Force
     $RequiredOutputs = @(
         (Join-Path $BundleRoot "METIS Analytics.exe"),
+        $BundledUserGuide,
         (Join-Path $RuntimeRoot "app.py"),
         (Join-Path $RuntimeRoot ".streamlit\config.toml"),
         (Join-Path $RuntimeRoot "assets\fonts\Inter-Regular.ttf"),
