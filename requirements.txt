@@ -1,19 +1,11 @@
 streamlit
 pandas
 numpy
-# Plotly 6 requires Kaleido >=1, which in turn needs a separately installed
-# Chrome/Chromium binary. Keep the last Plotly 5 release with Kaleido 0.2.1
-# so local and packaged offline builds can export charts without Chrome.
-plotly==5.24.1
+# Plotly 6.9.0 is the final stable 6.x release. Kaleido 1.4.0 requires an
+# installed Chromium browser; METIS discovers Chrome first, then Edge, and
+# never downloads a browser automatically.
+plotly==6.9.0
 scipy
 reportlab
 pypdf
-# Kaleido >=1.0 stopped bundling its own Chromium and needs an explicit
-# `kaleido.get_chrome()` fetch step we don't run, and there's no
-# packages.txt supplying system Chrome either — on Streamlit Community
-# Cloud this makes every fig.to_image() call in pages/report.py hang
-# indefinitely with no error (see plotly/Kaleido#80/#110/#134 and the
-# Streamlit Community Cloud thread referenced in pages/report.py).
-# 0.2.1 bundles its own Chromium and is the version most Streamlit+Kaleido
-# deployments still use for this reason.
-kaleido==0.2.1
+kaleido==1.4.0

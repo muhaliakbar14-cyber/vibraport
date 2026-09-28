@@ -1,6 +1,6 @@
 # Current State
 
-Last updated: 2026-09-23.
+Last updated: 2026-09-28.
 
 ## Product Direction
 - The product is now branded **METIS Analytics**, with the descriptor
@@ -93,16 +93,40 @@ Last updated: 2026-09-23.
   explicit operational thresholds and grouping settings. Compliance reports
   use the shared SNI/DIN/BS selectors and evaluate every eligible stored
   interval before summarizing the worst point per channel.
-- Plotly image export is bounded by a timeout so Kaleido cannot leave report generation spinning indefinitely.
-- The bounded exporter now allows 60 seconds for slow Windows cold starts,
-  serializes calls to Kaleido's shared process, and automatically terminates,
-  resets, and retries the renderer once after a timeout. Timed-out worker
-  threads no longer accumulate and poison later report attempts.
+- Report charts use Plotly 6.9.0 and Kaleido 1.4.0. Kaleido 0.2 private scope,
+  process, and shutdown internals are no longer used.
+- `core/report_renderer.py` discovers a valid explicit `BROWSER_PATH` first,
+  then Chrome before Edge. Firefox is unsupported. METIS does not download or
+  bundle a browser, so normal offline analysis remains available without one
+  and only PDF chart rendering depends on installed Chrome or Edge.
+- A reusable isolated renderer process owns Kaleido and the browser. Each chart
+  has a 60-second limit and one clean retry; timeout/crash/startup cleanup kills
+  the entire renderer/browser process tree. Later exports start a fresh worker,
+  while successful multi-chart reports reuse the existing worker.
+- Print Report diagnostics show Plotly/Kaleido versions and selected
+  browser/source/path and can perform a real chart self-test. Missing browser,
+  browser startup failure, render timeout, and renderer crash are separately
+  identified in waveform and monitoring report errors.
 - PDF reports include source Notes 1-3 in the top-right header, shared waveform scales, professional Inter fonts, Record Values/PVS, and the selected compliance chart plus measurement-basis explanation.
 - CSV report generation calculates a fallback dominant frequency when device metadata does not provide one.
 - SNI, DIN, and BS report variants were rendered and visually inspected on 2026-08-31.
 
 ## Verification Status
+- On 2026-09-28, focused renderer/report/Windows-packaging coverage passed
+  **36 tests** with one browser-availability skip; the complete suite passed
+  **152 tests** with the same skip. Supplying the installed Chromium-compatible
+  browser through `BROWSER_PATH` made the real-render smoke test pass.
+- The complete pinned Windows manifest resolves as binary wheels for CPython
+  3.12/Windows x64; the verification was download-only and included the
+  Plotly/Kaleido 1 controller stack and PyInstaller.
+- Live Streamlit Print Report testing showed Plotly 6.9.0, Kaleido 1.4.0, and
+  the selected explicit browser path; its real-render self-test passed and an
+  Acceleration/Displacement + FFT report reached `Report ready!`.
+- Real seven-page waveform and five-page monitoring all-section PDFs were
+  generated, every page was rasterized, and headers, footers, page numbers,
+  charts, tables, clipping, and overlap were visually inspected. The only
+  discovered layout defect (a pale second-record waveform title) was fixed and
+  re-rendered successfully.
 - `python -m py_compile` passes for the modified application, page, and compliance modules.
 - `pytest -q` passes on `main`: **119 tests**. The synchronized
   `windows-packaging` branch passes **134 tests**, including launcher and
@@ -155,8 +179,10 @@ Last updated: 2026-09-23.
   Acceleration/Displacement, FFT, and SNI compliance generated as a seven-page
   PDF using actual Kaleido. The same flow passed in live Streamlit with a
   visible download control and no browser or server errors.
-- The source fix still requires a new native Windows portable build before the
-  packaged executable shown in the failure report can be retested.
+- The Plotly 6/Kaleido 1 source migration still requires a new native Windows
+  11 portable build before release. Linux verification used an explicit local
+  Chromium-compatible browser because this environment has neither Chrome nor
+  Edge installed; it does not prove frozen Windows browser startup/cleanup.
 
 ## Windows Packaging Track
 - The portable product directory and executable are now
@@ -176,6 +202,11 @@ Last updated: 2026-09-23.
   dependency, opens the browser only after the health endpoint is ready, and
   shows a native Windows error dialog on startup failure.
 - The pinned Windows manifest, PyInstaller spec, and PowerShell build script are implemented. All pinned direct and transitive dependencies resolve to CPython 3.12/Windows x64 wheels, including Kaleido's Windows runtime.
+- The Windows manifest now pins Plotly 6.9.0/Kaleido 1.4.0. The spec includes
+  Kaleido 1 controller dependencies but no browser. The build script explicitly
+  rejects bundled Chrome/Edge/Chromium executables. The launcher invokes
+  `multiprocessing.freeze_support()` before application startup so the frozen
+  isolated renderer worker is dispatched correctly.
 - The launcher has a native Windows tray with **Open METIS Analytics** and
   **Exit METIS Analytics**. Exit calls Streamlit's graceful server stop;
   closing only the browser leaves the app available in the tray.
@@ -196,5 +227,7 @@ Last updated: 2026-09-23.
   `windows-packaging` branch. The METIS Analytics rebrand is committed and
   pushed at `26b129c`.
 - `core/sni_chart.py` remains as a compatibility wrapper around the generic compliance chart implementation.
-- The next engineering task is domain review of DIN/BS wording and screening
-  policy, followed by broader bargraph fixture validation across equipment types.
+- The immediate release task is native Windows 11 rebuild and validation of
+  Chrome-first/Edge-fallback discovery, frozen worker startup, timeout cleanup,
+  repeated report health, and missing/blocked-browser diagnostics. Domain
+  review and broader equipment fixtures follow that release gate.

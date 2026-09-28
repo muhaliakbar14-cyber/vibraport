@@ -39,7 +39,14 @@ from pages.monitoring_trends import (
     _build_trend_figure,
     _shared_axis_compatible,
 )
-from pages.report import ImageExportTimeoutError, _to_image
+from core.report_renderer import (
+    BrowserNotFoundError,
+    BrowserStartupError,
+    ImageExportTimeoutError,
+    RendererCrashError,
+    RendererError,
+)
+from pages.report import _render_renderer_diagnostics, _to_image
 
 
 SECTION_OVERVIEW = "Monitoring overview"
@@ -70,6 +77,7 @@ def render(df, time_axis, metadata, sampling_rate):
         "Build a concise report from the active monitoring recording and choose "
         "which analysis sections to include."
     )
+    _render_renderer_diagnostics("monitoring_report")
     st.divider()
 
     if metadata.get("is_waveform", True):
@@ -264,12 +272,27 @@ def render(df, time_axis, metadata, sampling_rate):
                     sampling_rate,
                     options,
                 )
+        except BrowserNotFoundError as exc:
+            st.error(
+                f"PDF charts are unavailable: {exc} Install Chrome or Edge, restart "
+                "METIS Analytics, and run the renderer self-test."
+            )
+        except BrowserStartupError as exc:
+            st.error(
+                f"The selected browser could not start for PDF rendering: {exc} "
+                "Confirm it is not blocked by antivirus or application-control policy."
+            )
         except ImageExportTimeoutError as exc:
             st.error(
-                f"PDF generation could not recover the chart renderer: {exc} "
-                "Exit METIS Analytics from the tray, reopen it, and try once more."
+                f"PDF chart rendering timed out after automatic recovery: {exc} "
+                "Run the renderer self-test and retry."
             )
-        except (ImportError, RuntimeError, ValueError) as exc:
+        except RendererCrashError as exc:
+            st.error(
+                f"The isolated PDF renderer crashed after automatic recovery: {exc} "
+                "Run the renderer self-test and keep its diagnostic details available."
+            )
+        except (ImportError, RendererError, ValueError) as exc:
             st.error(f"Monitoring report generation failed: {exc}")
         else:
             base_name = metadata.get("_filename", "bargraph").rsplit(".", 1)[0]

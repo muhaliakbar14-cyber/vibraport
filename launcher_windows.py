@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import socket
 import json
+import multiprocessing
 import os
 import sys
 import tempfile
@@ -370,5 +371,13 @@ def main() -> int:
     return 0
 
 
+def _run_entrypoint() -> int:
+    # Required for the isolated Kaleido renderer worker in the PyInstaller
+    # executable. PyInstaller intercepts the worker command line here instead
+    # of starting a second Streamlit/tray instance.
+    multiprocessing.freeze_support()
+    return main()
+
+
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(_run_entrypoint())

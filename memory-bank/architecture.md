@@ -1,20 +1,33 @@
 # Architecture
 
-Last updated: 2026-09-23.
+Last updated: 2026-09-28.
 
 ## Runtime and Routing
 - `app.py`: Streamlit entrypoint, file manager/session registry,
   parse caching, grouped Waveform / Bargraph Monitoring / Print Report
   navigation, and explicit page routing.
-- `launcher_windows.py`: Windows packaging entrypoint; selects a free localhost port, applies local-only Streamlit settings, waits for server health, and opens the default browser. A named Windows mutex enforces one instance, `%LOCALAPPDATA%/METIS Analytics/instance.json` publishes only its localhost URL for reopen requests, and the system-tray controller provides Open/Exit commands. Tray Exit captures and gracefully stops Streamlit's server.
+- `launcher_windows.py`: Windows packaging entrypoint; calls
+  `multiprocessing.freeze_support()` for the isolated renderer worker, selects
+  a free localhost port, applies local-only Streamlit settings, waits for
+  server health, and opens the default browser. A named Windows mutex enforces
+  one instance, `%LOCALAPPDATA%/METIS Analytics/instance.json` publishes only
+  its localhost URL for reopen requests, and the system-tray controller
+  provides Open/Exit commands. The browser opened for the UI is unrelated to
+  the Chrome-first/Edge-fallback choice used by Kaleido.
 - `.streamlit/config.toml`: hides Streamlit's automatic pages navigation.
 - `pages/`: waveform analysis, monitoring overview, monitoring trends,
   monitoring-event review, monitoring PPV compliance, monitoring PDF reporting,
   attenuation/safe-zone analysis, and waveform PDF reporting.
 
 ## Windows Build Pipeline
-- `requirements-windows.txt`: pinned CPython 3.12 application, test, PyInstaller, and `pystray` dependencies for reproducible Windows x64 builds.
-- `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It includes the dynamically loaded `app.py`, application packages, Streamlit/Plotly/Kaleido data and binaries, configuration, fonts, logo assets, Windows tray backend, and executable icon under the `_internal` runtime directory.
+- `requirements-windows.txt`: pinned CPython 3.12 application, test,
+  PyInstaller, and `pystray` dependencies for reproducible Windows x64 builds,
+  including Plotly 6.9.0 and Kaleido 1.4.0.
+- `packaging/vibraport_windows.spec`: PyInstaller `onedir` definition. It
+  includes the dynamically loaded `app.py`, application packages,
+  Streamlit/Plotly/Kaleido plus Kaleido 1 controller dependencies,
+  configuration, fonts, logo assets, Windows tray backend, and executable icon
+  under the `_internal` runtime directory. It does not include a browser.
 - `assets/icons/metis-icon.png`: circular navy/cyan/white owl-and-wave mark
   used for the browser favicon and Windows tray. Its 1024x1024 PNG is the
   user-supplied production master and must not be visually altered.
@@ -23,7 +36,10 @@ Last updated: 2026-09-23.
   sidebar and welcome screen. Its 2400x800 PNG is the user-supplied production
   master and must not be visually altered.
 - `assets/icons/metis.ico`: multi-resolution 16–256 px Windows executable icon.
-- `packaging/build_windows.ps1`: Windows-only build entrypoint. It creates `.venv-windows`, installs the pinned dependencies, runs the full test suite, builds the portable bundle, and checks required outputs.
+- `packaging/build_windows.ps1`: Windows-only build entrypoint. It creates
+  `.venv-windows`, installs the pinned dependencies, runs the full test suite,
+  builds the portable bundle, checks required outputs, and fails if a Chrome,
+  Edge, or Chromium executable was bundled.
 - Target portable artifact: `dist/METIS Analytics/METIS Analytics.exe`; the portable bundle
   has passed clean-Windows testing, and an installer remains optional.
 
@@ -46,12 +62,22 @@ Last updated: 2026-09-23.
 - `regression/` and `optimizer/`: attenuation and delay-analysis logic.
 
 ## Report Pipeline
-- `pages/report.py` builds ReportLab PDFs and exports Plotly figures through bounded Kaleido calls.
-- Plotly image export is serialized around Kaleido's single shared subprocess.
-  A chart gets up to 60 seconds per attempt; a timeout terminates the wedged
-  Kaleido/Chromium process tree, clears the shared renderer, and retries once.
-  This prevents a timed-out export from permanently occupying the report
-  worker and breaking later report attempts.
+- `pages/report.py` builds ReportLab PDFs; `pages/monitoring_report.py` uses the
+  same chart export boundary for monitoring PDFs.
+- `core/report_renderer.py` discovers the browser, reports versions and
+  browser diagnostics, serializes chart requests, and owns a persistent
+  Kaleido 1 sync server in an isolated process. A valid explicit
+  `BROWSER_PATH` takes precedence; otherwise discovery exhausts Chrome before
+  Edge. Firefox is rejected, and no browser is downloaded or packaged.
+- Each chart gets up to 60 seconds per attempt and one retry. Timeout, startup
+  failure, or crash replaces the worker after terminating its entire browser
+  process tree. Successful requests reuse the same worker so multi-section
+  reports avoid repeated browser cold starts. Only public Kaleido 1 APIs
+  (`start_sync_server`, `calc_fig_sync`, and `stop_sync_server`) are used.
+- Windows and frozen builds use multiprocessing `spawn`; the launcher provides
+  PyInstaller `freeze_support`. Ordinary POSIX Streamlit uses `fork` to avoid
+  re-importing `app.py`, and Kaleido/browser startup occurs only inside the
+  child process.
 - `pages/monitoring_report.py` builds active-file bargraph PDFs with selectable
   overview, aggregated-trend, operational-event, and PPV-compliance sections.
   It calls the same full-resolution monitoring helpers and shared compliance

@@ -17,8 +17,8 @@ def test_windows_requirements_are_fully_pinned():
 
     assert requirements
     assert all("==" in requirement for requirement in requirements)
-    assert "plotly==5.24.1" in requirements
-    assert "kaleido==0.2.1" in requirements
+    assert "plotly==6.9.0" in requirements
+    assert "kaleido==1.4.0" in requirements
     assert "pystray==0.19.5" in requirements
     assert any(requirement.startswith("pyinstaller==") for requirement in requirements)
 
@@ -30,6 +30,8 @@ def test_pyinstaller_spec_is_valid_python_and_declares_required_data():
     assert 'PROJECT_ROOT / "app.py"' in spec_text
     assert 'PROJECT_ROOT / "assets"' in spec_text
     assert '"streamlit", "plotly", "kaleido"' in spec_text
+    assert '"choreographer", "logistro", "orjson"' in spec_text
+    assert "not Chrome or Edge" in spec_text
     assert 'contents_directory="_internal"' in spec_text
     assert 'assets" / "icons" / "metis.ico"' in spec_text
     assert "console=False" in spec_text
@@ -46,6 +48,9 @@ def test_build_script_enforces_windows_and_verifies_bundle_outputs():
     assert "-m PyInstaller" in script
     assert 'Join-Path $BundleRoot "METIS Analytics.exe"' in script
     assert 'Join-Path $RuntimeRoot "app.py"' in script
+    assert "$BundledBrowsers" in script
+    assert '"chrome.exe", "msedge.exe", "chromium.exe"' in script
+    assert "run PDF renderer diagnostics" in script
 
 
 def test_brand_assets_and_windows_icon_are_valid():

@@ -1,4 +1,52 @@
-# Latest Handoff (2026-09-23)
+# Latest Handoff (2026-09-28)
+
+## Plotly 6 / Kaleido 1 Renderer Migration
+- Active branch remains `windows-packaging`, based on commit `4d9feb2`. The
+  migration is implemented in the working tree and is intentionally uncommitted.
+- Runtime pins are now **Plotly 6.9.0** and **Kaleido 1.4.0** in both dependency
+  manifests. The versions were checked against the official PyPI projects and
+  Plotly/Kaleido documentation before they were selected.
+- `core/report_renderer.py` owns browser discovery, renderer diagnostics, and a
+  reusable isolated renderer worker. A valid explicit `BROWSER_PATH` wins;
+  otherwise all Chrome candidates are checked before Edge candidates. Firefox
+  is rejected and METIS never downloads or bundles a browser.
+- Every render is bounded to 60 seconds per attempt with one retry. A timeout,
+  startup failure, or crash tears down the worker and complete browser process
+  tree. Successful charts reuse the same worker/browser process for report
+  performance. Windows cleanup uses `taskkill /T /F`; POSIX workers create a
+  process group. There are no background export threads.
+- Windows/frozen execution uses multiprocessing `spawn` and the launcher calls
+  `multiprocessing.freeze_support()` before starting Streamlit. Ordinary POSIX
+  Streamlit uses `fork` because both `spawn` and `forkserver` re-import
+  `app.py`; Kaleido and the browser are initialized only after the fork.
+- Waveform and monitoring Print Report pages expose Plotly/Kaleido versions,
+  selected browser/source/path, and an opt-in real-render self-test. Missing
+  browser, startup failure, timeout, and crash messages are distinct and
+  actionable.
+- PyInstaller explicitly collects Kaleido 1's `choreographer`, `logistro`, and
+  `orjson` runtime dependencies. The Windows build script fails if Chrome,
+  Edge, or Chromium executables appear in the portable bundle.
+- Linux validation used the installed Chromium-compatible Brave executable via
+  explicit `BROWSER_PATH`; Chrome and Edge are not installed in this
+  environment. The real renderer smoke test passed, the live Streamlit
+  self-test passed, and the all-section UI export reached `Report ready!`.
+- Automated validation: focused renderer/report/packaging tests **36 passed,
+  1 skipped**; complete suite **152 passed, 1 skipped**. The skip is the
+  auto-discovery real-render test when no Chrome/Edge is installed; the same
+  test passes when the explicit local browser path is supplied.
+- The complete pinned `requirements-windows.txt` dependency graph resolves to
+  CPython 3.12/Windows x64 wheels, including Kaleido 1.4.0, Choreographer,
+  Orjson, and PyInstaller; this was verified with download-only resolution and
+  no installation.
+- Representative real-render outputs are
+  `output/pdf/metis-waveform-all-sections-qa.pdf` (7 pages) and
+  `output/pdf/metis-monitoring-all-sections-qa.pdf` (5 pages). Every page was
+  rasterized and visually inspected for charts, tables, branding, headers,
+  footers, page numbers, clipping, and overlap. A light-grey carry-over that
+  obscured the second waveform record title was fixed and reverified.
+- Native Windows/PyInstaller execution is the remaining release gate. Rebuild
+  on Windows 11 and run the checklist in `next-steps.md`; do not treat Linux
+  structural and unit coverage as a substitute for that platform test.
 
 ## METIS Analytics Rebrand
 - Rebranded the active application from Vibraport to **METIS Analytics**, named
@@ -30,7 +78,7 @@
   errors. Full suite: **139 passed**.
 - The user-supplied final artwork is committed and pushed at `037244e`.
 
-## PDF Chart-Renderer Recovery
+## Historical PDF Chart-Renderer Recovery (superseded 2026-09-28)
 - Fixed intermittent waveform and monitoring PDF failures where Kaleido image
   export exceeded the former 25-second timeout.
 - The exporter now uses one worker for Kaleido's one shared subprocess, allows
@@ -195,13 +243,20 @@
   and `work-log`.
 
 ## Immediate Next Task
-1. Rebuild the renamed native Windows portable bundle and validate two
-   consecutive multi-file/all-sections waveform reports in one app session.
-2. Ask a vibration engineer to review DIN/BS category wording, measurement
-   explanations, and the conservative BS Long-term screening policy.
-3. Validate normalized monitoring/report behavior against representative Gaia,
-   FX, and DX bargraph fixtures without committing customer data.
-4. Keep optional installer work separate.
+1. On Windows 11 with Python 3.12, run `packaging\build_windows.ps1` and confirm
+   the portable bundle contains no Chrome, Edge, or Chromium executable.
+2. Test the frozen app with Chrome installed, then with Chrome unavailable and
+   Edge installed; confirm diagnostics report the expected Chrome-first and
+   Edge-fallback selection.
+3. In one frozen-app session, run the renderer self-test and generate two
+   consecutive all-section waveform reports plus one all-section monitoring
+   report. Force/observe a renderer timeout or browser termination and confirm
+   retry recovery, a later healthy export, and no orphaned browser process.
+4. Repeat with neither supported browser available and with a deliberately
+   invalid/blocked `BROWSER_PATH`; confirm non-report analysis remains usable
+   and each error is actionable.
+5. Keep domain review and broader Gaia/FX/DX fixture validation as the next
+   product-hardening work after the renderer release gate.
 
 ## Guardrails for the Next Session
 - Read `memory-bank/current-state.md`, `decisions.md`, `next-steps.md`, and this file first.
@@ -212,3 +267,6 @@
   arrays.
 - Never label peak bars as RMS or derive VDV without a compatible stored
   metric/time history.
+- Do not reintroduce Kaleido private internals, package a browser, or add an
+  automatic browser download. PDF chart rendering is the only workflow that
+  requires installed Chrome or Edge.

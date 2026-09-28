@@ -78,8 +78,14 @@ try {
         }
     }
 
+    $BundledBrowsers = Get-ChildItem -Path $BundleRoot -Recurse -File |
+        Where-Object { $_.Name -in @("chrome.exe", "msedge.exe", "chromium.exe") }
+    if ($BundledBrowsers) {
+        throw "A browser executable was bundled unexpectedly. METIS Analytics must use installed Chrome or Edge."
+    }
+
     Write-Host "Portable METIS Analytics bundle created at: $BundleRoot"
-    Write-Host "Next: launch METIS Analytics.exe and complete the clean-Windows UI/PDF smoke test."
+    Write-Host "Next: launch METIS Analytics.exe, run PDF renderer diagnostics, and complete the clean-Windows UI/PDF smoke test with installed Chrome or Edge."
 }
 finally {
     Pop-Location

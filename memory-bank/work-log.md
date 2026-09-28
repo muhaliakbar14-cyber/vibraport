@@ -496,3 +496,46 @@
   showed the supplied artwork correctly in the sidebar and welcome screen with
   no browser errors.
 - Committed and pushed the final supplied artwork at `037244e`.
+
+## 2026-09-28 — Migrate reports to Plotly 6 / Kaleido 1
+- Verified the requested major-line releases from primary Plotly/Kaleido and
+  PyPI sources, then changed both manifests from Plotly 5.24.1/Kaleido 0.2.1
+  to Plotly 6.9.0/Kaleido 1.4.0.
+- Added `core/report_renderer.py` with Chrome-first/Edge-fallback discovery,
+  explicit `BROWSER_PATH`, Firefox rejection, structured diagnostics, and a
+  persistent isolated worker using public Kaleido 1 sync-server APIs.
+- Removed all waveform-report use of `plotly.io.kaleido.scope`, `_proc`, and
+  `_shutdown_kaleido`. The renderer bounds each attempt to 60 seconds, retries
+  once, and kills the complete worker/browser process tree after a timeout or
+  crash. Successful charts reuse one worker.
+- Added distinct missing-browser, browser-startup, timeout, and crash messages
+  plus self-test/version/browser details to waveform and monitoring Print
+  Report pages.
+- Added `multiprocessing.freeze_support()` to the Windows launcher, Kaleido 1
+  controller packages to the PyInstaller spec, and a Windows build check that
+  rejects bundled browser executables. Unit coverage verifies spawn selection
+  for frozen execution and the freeze-support-before-main call order.
+- Live Streamlit testing exposed that both POSIX `spawn` and `forkserver`
+  re-import `app.py` for the child and execute it without Streamlit's normal
+  context. POSIX was changed to `fork`, with Kaleido/browser initialization
+  deferred to the child; Windows/frozen execution remains `spawn`. The live
+  self-test then passed and an Acceleration/Displacement + FFT UI report reached
+  `Report ready!`.
+- Focused regression validation passed **36 tests, 1 skipped**. The complete
+  suite passed **152 tests, 1 skipped** outside the sandbox so the launcher
+  socket test could run. The skipped auto-discovery smoke test also passed when
+  run with the installed Chromium-compatible browser via explicit
+  `BROWSER_PATH`.
+- Download-only cross-platform dependency resolution confirmed that every
+  direct and transitive requirement in `requirements-windows.txt` has a
+  compatible CPython 3.12/Windows x64 wheel. Nothing was installed by this
+  check.
+- Generated a seven-page all-section waveform PDF and a five-page all-section
+  monitoring PDF through the actual Plotly 6/Kaleido 1 renderer. Rasterized
+  and inspected every page. Fixed the only discovered defect: the second
+  waveform record's Velocity title inherited the compliance note's grey fill.
+  Re-rendering confirmed the title and all other content were legible, aligned,
+  and unclipped.
+- Confirmed renderer/browser processes were gone after stopping Streamlit.
+  Native Windows 11/PyInstaller validation remains the release gate and is
+  detailed in `next-steps.md`.

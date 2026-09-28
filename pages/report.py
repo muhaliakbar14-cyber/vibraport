@@ -11,12 +11,9 @@ only surfaces when the user actually clicks Generate PDF.
 
 from __future__ import annotations
 
-import concurrent.futures
 import io
 import math
 import os
-import subprocess
-import threading
 import numpy as np
 import streamlit as st
 import plotly.graph_objects as go
@@ -42,119 +39,50 @@ from core.compliance import (
     overall_status,
 )
 from config import DEFAULT_FREQUENCY_METHOD, LOW_AMPLITUDE_THRESHOLD
+from core.report_renderer import (
+    BrowserNotFoundError,
+    BrowserStartupError,
+    ImageExportTimeoutError,
+    RendererCrashError,
+    RendererError,
+    get_renderer_diagnostics,
+    render_figure,
+)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
 # Bounded Kaleido image export
 # ══════════════════════════════════════════════════════════════════════════════
-# fig.to_image() (Kaleido -> headless Chrome) has a long history of hanging
-# indefinitely with zero error when Chrome fails to start/respond — common on
-# Streamlit Community Cloud if Kaleido can't find a Chrome binary. There's no
-# built-in timeout, so a stuck call previously meant "Generate PDF" spun
-# forever with no feedback. Every export is bounded; a timeout now resets the
-# renderer and retries once. See requirements.txt for the matching pin.
-
-class ImageExportTimeoutError(RuntimeError):
-    pass
-
-
-_IMG_EXPORT_TIMEOUT_S = 60
-_IMG_EXPORT_ATTEMPTS = 2
-_IMG_EXPORT_RECOVERY_WAIT_S = 5
-
-# Kaleido 0.2.x uses one shared subprocess internally and serializes access to
-# it. A single worker mirrors that constraint, while this lock prevents one
-# Streamlit session from restarting Kaleido underneath another session's
-# export.
-_img_export_pool = concurrent.futures.ThreadPoolExecutor(
-    max_workers=1,
-    thread_name_prefix="kaleido-export",
-)
-_img_export_lock = threading.Lock()
-
-
-def _get_kaleido_scope():
-    """Return Plotly's shared Kaleido scope without importing it at startup."""
-
-    from plotly.io import kaleido
-
-    return kaleido.scope
-
-
-def _terminate_process_tree(process) -> None:
-    """Stop the Kaleido/Chromium process tree without touching Streamlit."""
-
-    if process is None or process.poll() is not None:
-        return
-
-    if os.name == "nt":
-        creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-        try:
-            subprocess.run(
-                ["taskkill", "/PID", str(process.pid), "/T", "/F"],
-                check=False,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-                timeout=_IMG_EXPORT_RECOVERY_WAIT_S,
-                creationflags=creationflags,
-            )
-        except (OSError, subprocess.SubprocessError):
-            pass
-
-    if process.poll() is None:
-        try:
-            process.kill()
-        except OSError:
-            pass
-
-
-def _recover_timed_out_export(future) -> bool:
-    """Terminate a wedged Kaleido process and release its export worker."""
-
-    try:
-        scope = _get_kaleido_scope()
-    except (ImportError, AttributeError):
-        scope = None
-
-    process = getattr(scope, "_proc", None) if scope is not None else None
-    _terminate_process_tree(process)
-
-    # Killing Kaleido closes its stdout pipe, which lets the thread blocked in
-    # readline() unwind and release Kaleido's process lock.
-    try:
-        future.result(timeout=_IMG_EXPORT_RECOVERY_WAIT_S)
-    except Exception:
-        pass
-
-    if not future.done():
-        return False
-
-    shutdown = getattr(scope, "_shutdown_kaleido", None) if scope is not None else None
-    if callable(shutdown):
-        try:
-            shutdown()
-        except Exception:
-            pass
-    return True
-
-
 def _to_image(fig, **kwargs) -> bytes:
-    with _img_export_lock:
-        for attempt in range(1, _IMG_EXPORT_ATTEMPTS + 1):
-            future = _img_export_pool.submit(fig.to_image, **kwargs)
-            try:
-                return future.result(timeout=_IMG_EXPORT_TIMEOUT_S)
-            except concurrent.futures.TimeoutError:
-                recovered = _recover_timed_out_export(future)
-                if attempt < _IMG_EXPORT_ATTEMPTS and recovered:
-                    continue
-                raise ImageExportTimeoutError(
-                    "Chart image export stopped responding. METIS Analytics terminated "
-                    f"Kaleido and made {_IMG_EXPORT_ATTEMPTS} attempts with a "
-                    f"{_IMG_EXPORT_TIMEOUT_S}-second limit per attempt."
-                ) from None
-            except Exception as exc:
-                raise RuntimeError(f"Chart image export failed: {exc}") from exc
+    """Compatibility wrapper used by both waveform and monitoring reports."""
+
+    return render_figure(fig, **kwargs)
+
+
+def _render_renderer_diagnostics(key_prefix: str) -> None:
+    """Show browser/version diagnostics and an opt-in real render self-test."""
+
+    with st.expander("PDF chart renderer diagnostics"):
+        diagnostics = get_renderer_diagnostics(run_self_test=False)
+        st.write(f"Plotly: {diagnostics.plotly_version}")
+        st.write(f"Kaleido: {diagnostics.kaleido_version}")
+        if diagnostics.browser_path:
+            st.write(
+                f"Browser: {diagnostics.browser_name} ({diagnostics.browser_source})"
+            )
+            st.code(diagnostics.browser_path, language=None)
+        else:
+            st.warning(diagnostics.message)
+        if st.button(
+            "Run renderer self-test",
+            key=f"{key_prefix}_renderer_self_test",
+            disabled=not diagnostics.browser_path,
+        ):
+            tested = get_renderer_diagnostics(run_self_test=True)
+            if tested.status == "healthy":
+                st.success(tested.message)
+            else:
+                st.error(f"{tested.error_code}: {tested.message}")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -223,6 +151,7 @@ def render(df, time_axis, metadata, sampling_rate,
         key=f"report_category_{compliance_standard}",
     )
     st.caption(measurement_explanation(compliance_standard, assessment))
+    _render_renderer_diagnostics("waveform_report")
 
     st.divider()
 
@@ -247,11 +176,29 @@ def render(df, time_axis, metadata, sampling_rate,
                     uploaded_files_dict=uploaded_files_dict or {},
                 )
                 pdf_bytes = _build_metis_pdf(files, options)
+        except BrowserNotFoundError as e:
+            st.error(
+                f"PDF charts are unavailable: {e} Install Chrome or Edge, restart "
+                "METIS Analytics, and run the renderer self-test."
+            )
+            return
+        except BrowserStartupError as e:
+            st.error(
+                f"The selected browser could not start for PDF rendering: {e} "
+                "Confirm the browser opens normally and is not blocked by antivirus, "
+                "application-control policy, or permissions, then run the self-test."
+            )
+            return
         except ImageExportTimeoutError as e:
             st.error(
-                f"⚠️ PDF generation could not recover the chart renderer: {e} "
-                "Exit METIS Analytics from the tray, reopen it, and try once more. "
-                "If the same file still fails, keep its filename available for diagnosis."
+                f"PDF chart rendering timed out after automatic recovery: {e} "
+                "Close any stuck browser instances, run the renderer self-test, and retry."
+            )
+            return
+        except RendererCrashError as e:
+            st.error(
+                f"The isolated PDF renderer crashed after automatic recovery: {e} "
+                "Run the renderer self-test and keep its diagnostic details available."
             )
             return
         except ImportError as e:
@@ -260,7 +207,7 @@ def render(df, time_axis, metadata, sampling_rate,
                 "Run `pip install reportlab kaleido` in your environment, then restart Streamlit."
             )
             return
-        except RuntimeError as e:
+        except RendererError as e:
             st.error(f"PDF chart rendering failed: {e}")
             return
 
@@ -1204,6 +1151,10 @@ def _build_metis_pdf(files, options: dict) -> bytes:
             c.drawString(MARGIN + 5, y - 9, f"Report note: {note_text}")
             y -= 17
 
+        # The compliance note leaves the canvas fill set to its light-grey
+        # background. Reset it so records after the first one do not render
+        # this heading almost invisibly when there is no report-note block.
+        c.setFillColor(rl_colors.black)
         c.setFont(title_font, 12)
         c.drawCentredString(PAGE_W / 2, y - 2, "Velocity (mm/s)")
         y -= 10

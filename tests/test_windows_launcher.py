@@ -33,6 +33,23 @@ def test_streamlit_options_are_local_and_use_selected_port():
     assert options["global.developmentMode"] is False
 
 
+def test_frozen_entrypoint_enables_multiprocessing_before_main(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        launcher_windows.multiprocessing,
+        "freeze_support",
+        lambda: calls.append("freeze_support"),
+    )
+    monkeypatch.setattr(
+        launcher_windows,
+        "main",
+        lambda: calls.append("main") or 17,
+    )
+
+    assert launcher_windows._run_entrypoint() == 17
+    assert calls == ["freeze_support", "main"]
+
+
 def test_single_instance_state_round_trip(tmp_path):
     guard = launcher_windows.SingleInstanceGuard(tmp_path / "instance.json")
     guard._is_primary = True

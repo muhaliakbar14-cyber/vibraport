@@ -257,3 +257,33 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
   definitive production artwork. Copy the PNGs byte-for-byte; do not regenerate,
   retouch, crop, recolor, or resize them. Only derive the multi-resolution ICO
   required by Windows packaging.
+
+## 2026-09-28 — Plotly 6 / Kaleido 1 browser-backed report renderer
+- Decision: supersede the 2026-09-23 decision to retain Plotly 5.24.1/Kaleido
+  0.2.1. Pin Plotly 6.9.0 and Kaleido 1.4.0 in the general and Windows
+  manifests.
+- Why: Kaleido 0.2.1 can freeze indefinitely on Windows 11, and restarting the
+  same private legacy renderer is not a reliable recovery. Plotly 6.9.0 and
+  Kaleido 1.4.0 are the current final stable releases in their requested major
+  lines and use supported public Kaleido APIs.
+- Decision: never bundle, download, or install a browser. Respect a valid
+  explicit `BROWSER_PATH`; otherwise prefer installed Google Chrome and fall
+  back to installed Microsoft Edge. Ignore the Windows default-browser choice
+  and reject Firefox.
+- Why: this keeps the application bundle smaller and preserves ordinary
+  offline analysis. Only PDF chart rendering has the installed-browser
+  prerequisite, and failures can provide a direct remediation path.
+- Decision: own Kaleido in one reusable isolated process, bound each attempt to
+  60 seconds, retry exactly once, and terminate the full worker/browser process
+  tree after timeout or crash. Do not use `plotly.io.kaleido.scope`, `_proc`,
+  `_shutdown_kaleido`, or background render threads.
+- Why: a process boundary is the only reliable way to terminate an unresponsive
+  native browser without stopping Streamlit. Reuse keeps multi-chart reports
+  practical, while replacing a failed worker preserves later-export health.
+- Decision: use multiprocessing `spawn` for Windows/frozen builds with
+  `multiprocessing.freeze_support()` at the launcher entrypoint. Use `fork` for
+  ordinary POSIX Streamlit and initialize Kaleido/browser only in the child.
+- Why: Windows/PyInstaller requires spawn/freeze support. On POSIX, both spawn
+  and forkserver re-import Streamlit's `app.py` as the worker main module;
+  verified live testing showed that this executes the page without its normal
+  context. Fork avoids that re-import and the child starts with no live browser.

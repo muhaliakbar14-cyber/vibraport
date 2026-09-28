@@ -17,9 +17,10 @@ for package_name in ("core", "optimizer", "pages", "regression"):
 if sys.platform == "win32":
     hiddenimports.append("pystray._win32")
 
-# Streamlit contains its compiled frontend; Kaleido 0.2.1 contains the browser
-# runtime used for offline Plotly image export. collect_all preserves their
-# package data, binaries, metadata, and dynamic submodules.
+# Streamlit contains its compiled frontend. Plotly 6 and Kaleido 1 package the
+# renderer libraries, but not Chrome or Edge; the application discovers an
+# installed browser at runtime. collect_all preserves package data, binaries,
+# metadata, and dynamic submodules without bundling a browser.
 datas = [
     (str(PROJECT_ROOT / "app.py"), "."),
     (str(PROJECT_ROOT / ".streamlit" / "config.toml"), ".streamlit"),
@@ -27,6 +28,14 @@ datas = [
 ]
 binaries = []
 for package_name in ("streamlit", "plotly", "kaleido"):
+    package_datas, package_binaries, package_hiddenimports = collect_all(package_name)
+    datas += package_datas
+    binaries += package_binaries
+    hiddenimports += package_hiddenimports
+
+# Kaleido 1 delegates browser control to these packages. Explicit collection
+# keeps the spawned renderer worker complete in the frozen Windows bundle.
+for package_name in ("choreographer", "logistro", "orjson"):
     package_datas, package_binaries, package_hiddenimports = collect_all(package_name)
     datas += package_datas
     binaries += package_binaries
