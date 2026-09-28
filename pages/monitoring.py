@@ -409,7 +409,7 @@ def _render_timeline(
             )
 
     figure.update_xaxes(title_text="Time (min)", row=len(channels), col=1)
-    figure.update_yaxes(tickfont=dict(size=10), rangemode="tozero")
+    figure.update_yaxes(tickfont=dict(size=12), rangemode="tozero")
     figure.update_layout(
         height=max(420, 235 * len(channels)),
         hovermode="x",
@@ -419,7 +419,12 @@ def _render_timeline(
         uirevision=widget_suffix,
     )
     for annotation in figure.layout.annotations:
-        annotation.update(font=dict(size=12))
+        annotation.update(
+            font=dict(
+                family="Inter SemiBold, Inter, Arial, sans-serif",
+                size=14,
+            )
+        )
 
     st.plotly_chart(
         figure,

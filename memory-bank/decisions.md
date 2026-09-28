@@ -287,3 +287,24 @@ User pushback on the first version of the scaling UI surfaced one genuine bug an
   and forkserver re-import Streamlit's `app.py` as the worker main module;
   verified live testing showed that this executes the page without its normal
   context. Fork avoids that re-import and the child starts with no live browser.
+
+## 2026-09-28 — Explicit attenuation regression snapshots
+- Decision: store the complete last successful attenuation result (figure,
+  fit, equations, and selected channels) in Streamlit session state and render
+  it outside the Calculate Regression button branch.
+- Why: Streamlit reruns on every table, calculator, and prediction-table edit.
+  Rendering the graph only inside the transient button branch made valid
+  results disappear and made the UI look as if edits had invalidated them.
+- Decision: only a successful Calculate Regression click replaces the stored
+  snapshot. Invalid attempts report their validation error and preserve the
+  previous valid graph, Regression Results, and calculator fit.
+- Why: this makes the displayed model deliberate and reproducible; unsubmitted
+  table/channel edits cannot silently alter safety calculations.
+
+## 2026-09-28 — Tool-neutral repository handoff
+- Decision: keep `memory-bank/` as canonical context and add small root/tool
+  adapters (`AGENTS.md`, `CLAUDE.md`, and Copilot instructions) that direct
+  assistants and IDEs to read it before editing.
+- Why: project continuity must not depend on one chat product or hidden
+  conversation history, while duplicating full state across tool-specific files
+  would immediately create stale, conflicting documentation.

@@ -160,7 +160,7 @@ def _render_stacked_chart(df, time_axis, channels, key_prefix, show_sync_toggle=
                             line=dict(color='black', width=1)),
                 text=[f" {abs(peak_v):.3f} {unit}"],
                 textposition='middle right',
-                textfont=dict(size=12, color='red'),
+                textfont=dict(size=14, color='red'),
                 showlegend=False,
             ),
             row=i, col=1
@@ -170,6 +170,14 @@ def _render_stacked_chart(df, time_axis, channels, key_prefix, show_sync_toggle=
         if sync_y and unit in unit_max:
             ymax = unit_max[unit] * 1.15
             fig.update_yaxes(range=[-ymax, ymax], row=i, col=1)
+        fig.update_yaxes(
+            title_text=unit,
+            title_font=dict(size=15, color="#20242A"),
+            title_standoff=8,
+            tickfont=dict(size=12),
+            row=i,
+            col=1,
+        )
 
     # Time ticks every 100 ms
     max_t     = time_ms[-1]
@@ -178,9 +186,10 @@ def _render_stacked_chart(df, time_axis, channels, key_prefix, show_sync_toggle=
         tickvals=tick_vals,
         ticktext=[str(t) for t in tick_vals],
         title_text="Time (ms)",
+        title_font=dict(size=16, color="#20242A"),
+        tickfont=dict(size=12),
         row=len(channels), col=1,
     )
-    fig.update_yaxes(tickfont=dict(size=10))
     fig.update_layout(
         height=max(200, 130 * len(channels)),
         hovermode="x unified",
@@ -188,7 +197,13 @@ def _render_stacked_chart(df, time_axis, channels, key_prefix, show_sync_toggle=
         margin=dict(t=40, b=60, l=60, r=40),
     )
     for ann in fig.layout.annotations:
-        ann.update(font=dict(size=12, color='black'))
+        ann.update(
+            font=dict(
+                family="Inter SemiBold, Inter, Arial, sans-serif",
+                size=14,
+                color="#20242A",
+            )
+        )
 
     st.plotly_chart(fig, use_container_width=True)
 
@@ -264,6 +279,14 @@ def _render_frequency_analysis(df, time_axis, sampling_rate, metadata=None):
         height=400,
         hovermode="x unified",
         legend=dict(orientation='h', y=-0.2),
+    )
+    fig_fft.update_xaxes(
+        title_font=dict(size=16, color="#20242A"),
+        tickfont=dict(size=13),
+    )
+    fig_fft.update_yaxes(
+        title_font=dict(size=16, color="#20242A"),
+        tickfont=dict(size=13),
     )
     st.plotly_chart(fig_fft, use_container_width=True)
 

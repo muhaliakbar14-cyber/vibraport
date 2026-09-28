@@ -3,6 +3,8 @@
 PPV vs Scaled Distance Analysis page — regression and safe zone prediction.
 """
 
+from html import escape
+
 import numpy as np
 import pandas as pd
 import streamlit as st
@@ -14,6 +16,165 @@ from regression.fitting import (
     confidence_curve,
 )
 from config import VELOCITY_CHANNELS
+
+
+_CHANNEL_COLORS = {
+    'Vertical': '#00897B',
+    'Longitudinal': '#E53935',
+    'Transversal': '#5C6BC0',
+}
+
+
+def _equation(K, n):
+    return f"PPV = {K} × SD^{n}"
+
+
+def _build_regression_result(data_rows, selected_names):
+    """Build an immutable snapshot of one explicit regression calculation."""
+    if not selected_names:
+        raise ValueError("Please select at least one channel.")
+
+    data = pd.DataFrame(data_rows)
+    required_columns = [
+        'Charge (kg)',
+        'Distance (m)',
+        'Vertical (mm/s)',
+        'Longitudinal (mm/s)',
+        'Transversal (mm/s)',
+    ]
+    data = data[
+        (data['Charge (kg)'] > 0) & (data['Distance (m)'] > 0)
+    ].dropna(subset=required_columns)
+
+    if len(data) < 4:
+        raise ValueError("Please enter at least 4 valid data points.")
+
+    charges = data['Charge (kg)'].values
+    distances = data['Distance (m)'].values
+    channels = {
+        'Vertical': data['Vertical (mm/s)'].values,
+        'Longitudinal': data['Longitudinal (mm/s)'].values,
+        'Transversal': data['Transversal (mm/s)'].values,
+    }
+
+    # Pool the actual PPV points from every selected channel into the fit.
+    # This preserves the existing behavior where each selected channel
+    # contributes independently instead of collapsing each shot to its max.
+    scaled_distance_parts = []
+    ppv_parts = []
+    for name in selected_names:
+        values = channels[name]
+        channel_valid = values > 0
+        scaled_distance_parts.append(
+            standard_scaled_distance(
+                distances[channel_valid],
+                charges[channel_valid],
+            )
+        )
+        ppv_parts.append(values[channel_valid])
+
+    scaled_distance = np.concatenate(scaled_distance_parts)
+    ppv = np.concatenate(ppv_parts)
+    if len(scaled_distance) < 4:
+        raise ValueError(
+            "Please enter at least 4 positive PPV values across the selected channels."
+        )
+
+    # Plot markers against the original row order for the selected channels.
+    valid_rows = np.zeros(len(charges), dtype=bool)
+    for name in selected_names:
+        valid_rows |= channels[name] > 0
+    valid_charges = charges[valid_rows]
+    valid_distances = distances[valid_rows]
+    display_scaled_distance = standard_scaled_distance(
+        valid_distances,
+        valid_charges,
+    )
+
+    fit = fit_power_law(scaled_distance, ppv)
+    x_range = np.linspace(scaled_distance.min(), scaled_distance.max(), 200)
+    y_regression = regression_curve(fit['K'], fit['n'], x_range)
+    y_confidence = confidence_curve(fit['K_conf'], fit['n'], x_range)
+
+    figure = go.Figure()
+    blocks = (
+        data['Block'].values[valid_rows]
+        if 'Block' in data.columns
+        else np.ones(valid_rows.sum())
+    )
+    block_symbol = {1: 'circle-open', 2: 'square-open'}
+    block_label = {1: '', 2: ' (Blk2)'}
+
+    for channel_name in selected_names:
+        values = channels[channel_name][valid_rows]
+        for block in sorted(set(blocks.astype(int))):
+            block_mask = blocks.astype(int) == block
+            if not block_mask.any():
+                continue
+            figure.add_trace(go.Scatter(
+                x=display_scaled_distance[block_mask],
+                y=values[block_mask],
+                mode='markers',
+                name=f"{channel_name}{block_label.get(block, '')}",
+                marker=dict(
+                    color=_CHANNEL_COLORS[channel_name],
+                    size=10,
+                    symbol=block_symbol.get(block, 'circle-open'),
+                    line=dict(width=2),
+                ),
+            ))
+
+    figure.add_trace(go.Scatter(
+        x=x_range,
+        y=y_regression,
+        mode='lines',
+        name='Regression line',
+        line=dict(color='#E53935', width=2.5),
+    ))
+    figure.add_trace(go.Scatter(
+        x=x_range,
+        y=y_confidence,
+        mode='lines',
+        name='95% Confidence line',
+        line=dict(color='#FFB300', width=2.5, dash='dash'),
+    ))
+    figure.update_layout(
+        xaxis_title="Scaled Distance — D / √Q (m/kg^0.5)",
+        yaxis_title="PPV (mm/s)",
+        xaxis_type="log",
+        yaxis_type="log",
+        height=550,
+        hovermode="closest",
+        legend=dict(orientation="h", yanchor="bottom", y=-0.3),
+    )
+
+    return {
+        'figure': figure,
+        'fit': fit,
+        'regression_equation': _equation(fit['K'], fit['n']),
+        'confidence_equation': _equation(fit['K_conf'], fit['n']),
+        'selected_channels': tuple(selected_names),
+    }
+
+
+def _render_regression_result(result):
+    """Render the last explicitly calculated result snapshot."""
+    st.caption(
+        "Showing the last calculated regression. Table and channel edits are "
+        "applied only after clicking Calculate Regression again."
+    )
+    st.plotly_chart(result['figure'], use_container_width=True)
+    st.subheader("Regression Results")
+    st.markdown(f"**Regression:** {result['regression_equation']}")
+    confidence_equation = escape(result['confidence_equation'])
+    st.markdown(
+        '<div class="metis-confidence-result">'
+        '<div class="metis-confidence-result__label">Confidence (95%)</div>'
+        f'<div class="metis-confidence-result__equation">{confidence_equation}</div>'
+        '</div>',
+        unsafe_allow_html=True,
+    )
+    st.metric("Correlation Coefficient (r)", result['fit']['r'])
 
 
 def render(uploaded_files_dict, ppv_registry):
@@ -185,125 +346,29 @@ def render(uploaded_files_dict, ppv_registry):
     use_tran = cb3.checkbox("Transversal", value=True)
 
     # ── Calculate Regression ───────────────────────────────────────────────────
+    selected_names = [
+        name
+        for name, use in [
+            ('Vertical', use_vert),
+            ('Longitudinal', use_long),
+            ('Transversal', use_tran),
+        ]
+        if use
+    ]
     if st.button("📐 Calculate Regression", type="primary"):
-        data = pd.DataFrame(data_rows)
-        data = data[(data['Charge (kg)'] > 0) & (data['Distance (m)'] > 0)].dropna(subset=['Charge (kg)', 'Distance (m)', 'Vertical (mm/s)', 'Longitudinal (mm/s)', 'Transversal (mm/s)'])
+        try:
+            regression_result = _build_regression_result(data_rows, selected_names)
+        except ValueError as exc:
+            st.error(str(exc))
+        else:
+            # Both the chart and numeric result are a snapshot of this click.
+            # Subsequent widget/table reruns keep rendering this same snapshot.
+            st.session_state['ppv_regression_result'] = regression_result
+            st.session_state['ppv_fit'] = regression_result['fit']
 
-        if len(data) < 4:
-            st.error("Please enter at least 4 valid data points.")
-            return
-
-        charges = data['Charge (kg)'].values
-        distances = data['Distance (m)'].values
-        channel_colors = {
-            'Vertical': '#00897B',
-            'Longitudinal': '#E53935',
-            'Transversal': '#5C6BC0',
-        }
-        channels = {
-            'Vertical': data['Vertical (mm/s)'].values,
-            'Longitudinal': data['Longitudinal (mm/s)'].values,
-            'Transversal': data['Transversal (mm/s)'].values,
-        }
-
-        selected_names = [name for name, use in
-                          [('Vertical', use_vert), ('Longitudinal', use_long), ('Transversal', use_tran)]
-                          if use]
-
-        if not selected_names:
-            st.error("Please select at least one channel.")
-            return
-
-        # Pool the actual PPV points from every selected channel into the
-        # regression fit (not just their per-shot max). Taking the max across
-        # channels collapses everything to whichever channel happens to be
-        # largest — usually Vertical — so checking/unchecking the other boxes
-        # had no visible effect on the fitted line. Pooling means each
-        # selected channel contributes its own points, so the fit actually
-        # changes depending on which channels are included.
-        SD_list, V_list = [], []
-        for name in selected_names:
-            vals = channels[name]
-            valid_ch = vals > 0
-            SD_list.append(standard_scaled_distance(distances[valid_ch], charges[valid_ch]))
-            V_list.append(vals[valid_ch])
-        SD = np.concatenate(SD_list)
-        V = np.concatenate(V_list)
-
-        # `valid` (any selected channel > 0) is still used below for plotting
-        # markers and Block 1/2 masks against the original row order.
-        valid = np.zeros(len(charges), dtype=bool)
-        for name in selected_names:
-            valid |= channels[name] > 0
-        Q = charges[valid]
-        D = distances[valid]
-
-        xaxis_title = "Scaled Distance — D / √Q (m/kg^0.5)"
-        eq_template = lambda K, n: f"PPV = {K} × SD^{n}"
-        x_pts = {ch: standard_scaled_distance(D, Q) for ch in channels}
-
-        fit = fit_power_law(SD, V)
-        x_range = np.linspace(SD.min(), SD.max(), 200)
-        y_reg = regression_curve(fit['K'], fit['n'], x_range)
-        y_conf = confidence_curve(fit['K_conf'], fit['n'], x_range)
-
-        fig = go.Figure()
-
-        # Data points — different marker symbols for Block 1 vs Block 2
-        blocks = data['Block'].values[valid] if 'Block' in data.columns else np.ones(valid.sum())
-        block_symbol = {1: 'circle-open', 2: 'square-open'}
-        block_label  = {1: '',            2: ' (Blk2)'}
-
-        for ch_name, ppv_vals in channels.items():
-            if ch_name == 'Vertical' and not use_vert: continue
-            if ch_name == 'Longitudinal' and not use_long: continue
-            if ch_name == 'Transversal' and not use_tran: continue
-            color = channel_colors[ch_name]
-            v = ppv_vals[valid]
-            sd_pts = x_pts[ch_name]
-            for blk in sorted(set(blocks.astype(int))):
-                mask_b = blocks.astype(int) == blk
-                if not mask_b.any(): continue
-                fig.add_trace(go.Scatter(
-                    x=sd_pts[mask_b], y=v[mask_b],
-                    mode='markers',
-                    name=f"{ch_name}{block_label[blk]}",
-                    marker=dict(color=color, size=10,
-                                symbol=block_symbol.get(blk, 'circle-open'),
-                                line=dict(width=2)),
-                ))
-
-        # Regression and confidence lines
-        fig.add_trace(go.Scatter(
-            x=x_range, y=y_reg, mode='lines',
-            name='Regression line',
-            line=dict(color='#E53935', width=2.5),
-        ))
-        fig.add_trace(go.Scatter(
-            x=x_range, y=y_conf, mode='lines',
-            name='95% Confidence line',
-            line=dict(color='#FFB300', width=2.5, dash='dash'),
-        ))
-
-        fig.update_layout(
-            xaxis_title=xaxis_title,
-            yaxis_title="PPV (mm/s)",
-            xaxis_type="log",
-            yaxis_type="log",
-            height=550,
-            hovermode="closest",
-            legend=dict(orientation="h", yanchor="bottom", y=-0.3)
-        )
-        st.plotly_chart(fig, use_container_width=True)
-
-        # Results
-        st.subheader("Regression Results")
-        st.markdown(f"**Regression:** {eq_template(fit['K'], fit['n'])}")
-        st.markdown(f"**Confidence (95%):** {eq_template(fit['K_conf'], fit['n'])}")
-        st.metric("Correlation Coefficient (r)", fit['r'])
-
-        # Store regression results in session state for the calculator
-        st.session_state['ppv_fit'] = fit
+    regression_result = st.session_state.get('ppv_regression_result')
+    if regression_result is not None:
+        _render_regression_result(regression_result)
 
     # ── Safe Zone Calculator ───────────────────────────────────────────────────
     if 'ppv_fit' in st.session_state:

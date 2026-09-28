@@ -10,7 +10,10 @@ Last updated: 2026-09-28.
 2. With Chrome installed, launch `METIS Analytics.exe`, run PDF renderer
    diagnostics/self-test, and confirm it identifies Chrome. Generate two
    consecutive multi-file/all-section waveform reports and one all-section
-   monitoring report in the same application session.
+   monitoring report in the same application session. Also confirm the
+   Waveform sidebar order and verify that an attenuation graph/Regression
+   Results remain visible while editing Safe Zone and prediction-table inputs,
+   then update only after Calculate Regression is clicked again.
 3. Make Chrome unavailable while Edge remains installed, restart the frozen
    app, and confirm diagnostics select Edge and all three report paths still
    complete. The Windows default browser must not affect selection.

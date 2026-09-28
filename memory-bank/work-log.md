@@ -580,3 +580,45 @@
   browser, workflow, report-reading, troubleshooting, and checklist content.
   Validation: packaging/launcher tests **16 passed**; complete suite **153
   passed, 1 skipped**; `git diff --check` passed.
+
+## 2026-09-28 — Improve application readability
+- Increased global body, sidebar uploader/menu, regular expander, metric, and
+  Plotly typography. The long USBM explanation and renderer diagnostics are
+  tagged as the only compact expander exceptions.
+- Increased axes, tick labels, peak annotations, and subplot titles for signal,
+  FFT, derivative/integral, monitoring, trends, and compliance charts.
+- Added bold/high-contrast emphasis for PPV, PVS, utilization, and compliance
+  result fields without changing parsing, analysis, or report calculations.
+- Added focused source-level regressions for the global treatment, the two
+  compact exceptions, chart typography, and PPV/PVS emphasis.
+- Follow-up tuning retained the compact 1.9-rem Streamlit metric scale accepted
+  by the user for now and added a dedicated highlighted panel for the 95%
+  confidence equation.
+- Validation: focused suite **82 passed**; complete suite **159 passed, 1
+  skipped**; Python compilation and `git diff --check` passed. Live Streamlit
+  desktop inspection confirmed the larger sidebar/upload/menu hierarchy.
+
+## 2026-09-28 — Persist attenuation regression results
+- Moved Attenuation & Safe Zone above Signature Hole Analysis in the Waveform
+  sidebar and verified the order in live Streamlit.
+- Refactored regression calculation into a snapshot builder containing the
+  plotted figure, fit, equations, and selected channels. The last successful
+  snapshot renders on every rerun and is replaced only by another successful
+  Calculate Regression click.
+- Calculator, prediction-table, channel, and blast-table edits no longer hide
+  or silently update the attenuation graph and Regression Results. Invalid
+  recalculation attempts preserve the previous valid result.
+- Added focused regression coverage for navigation order, snapshot immutability,
+  selected-channel validation, positive-value validation, and render wiring.
+  Validation: focused suite **17 passed**; complete suite **164 passed, 1
+  skipped**; Python compilation and `git diff --check` passed.
+
+## 2026-09-28 — Add tool-neutral project continuation files
+- Added root `AGENTS.md` with mandatory memory-bank startup reads, project
+  guardrails, standard verification commands, and documentation handoff rules.
+- Added lightweight `CLAUDE.md` and `.github/copilot-instructions.md` adapters
+  so common assistants/IDEs discover the same repository context without
+  duplicating state.
+- Updated memory-bank README/carry guide, architecture, decisions, current
+  state, next steps, and latest handoff. The memory bank remains canonical and
+  the adapters are only entry points.

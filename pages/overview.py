@@ -50,9 +50,13 @@ def render(df, time_axis, metadata, sampling_rate, make_chart_fn=None):
 
         if table_rows:
             summary_df = pd.DataFrame(table_rows)
+            summary_display = summary_df.style.set_properties(
+                subset=["PPV"],
+                **{"font-weight": "700", "color": "#103B5C"},
+            )
 
             st.dataframe(
-                summary_df,
+                summary_display,
                 width="stretch",
                 hide_index=True,
                 column_config={
@@ -71,11 +75,16 @@ def render(df, time_axis, metadata, sampling_rate, make_chart_fn=None):
             pvs_b1 = vector_sum.get('ch1_3')
             pvs_b2 = vector_sum.get('ch4_6')
             if pvs_b1 and pvs_b1 > 0:
-                pvs_parts.append(f"Block 1 = **{pvs_b1:.2f} mm/s**")
+                pvs_parts.append(f"Block 1 = <strong>{pvs_b1:.2f} mm/s</strong>")
             if pvs_b2 and pvs_b2 > 0:
-                pvs_parts.append(f"Block 2 = **{pvs_b2:.2f} mm/s**")
+                pvs_parts.append(f"Block 2 = <strong>{pvs_b2:.2f} mm/s</strong>")
             if pvs_parts:
-                st.caption("Peak Vector Sum:  " + "    |    ".join(pvs_parts))
+                st.markdown(
+                    '<div class="metis-key-result">Peak Vector Sum (PVS): '
+                    + " &nbsp;&nbsp;|&nbsp;&nbsp; ".join(pvs_parts)
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
 
     # ── Structural vibration compliance — waveform only ──────────────────────
     if metadata.get('is_waveform', True):
@@ -368,7 +377,11 @@ def _render_compliance_chart(df, time_axis, sampling_rate, metadata):
             "Applied Limit": f"{format_limit(result.limit)} mm/s" if result.limit is not None else "Review",
             "Result": result.status,
         })
-    st.dataframe(pd.DataFrame(result_rows), width="stretch", hide_index=True)
+    result_display = pd.DataFrame(result_rows).style.set_properties(
+        subset=["PPV", "Result"],
+        **{"font-weight": "700", "color": "#103B5C"},
+    )
+    st.dataframe(result_display, width="stretch", hide_index=True)
 
     st.caption("Tran: +   Vert: ×   Long: ○   (hollow = Block 2)")
     st.caption(measurement_explanation(standard_id, assessment))

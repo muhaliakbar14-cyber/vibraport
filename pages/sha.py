@@ -142,6 +142,10 @@ def render(df, time_axis, sampling_rate):
 
     with st.expander("ℹ️ About USBM Scaling", expanded=False):
         st.markdown(
+            '<span class="metis-compact-expander" aria-hidden="true"></span>',
+            unsafe_allow_html=True,
+        )
+        st.markdown(
             r"""
 The signature hole recording captures the wave from **one** charge weight
 at **one** distance. If a simulated hole uses a different charge weight,
@@ -431,9 +435,9 @@ cautious the larger the scale factor is.
 
         st.success(
             f"✅ Simulation complete! "
-            f"Best combination: Hole Delay = {best['hole_delay_ms']} ms, "
-            f"Row Delay = {best['row_delay_ms']} ms — "
-            f"Peak Vector Sum = {best['pvs']} mm/s"
+            f"Best combination: **Hole Delay = {best['hole_delay_ms']} ms**, "
+            f"**Row Delay = {best['row_delay_ms']} ms** — "
+            f"Peak Vector Sum = **{best['pvs']} mm/s**"
         )
 
         # ── Frequency Band Analysis ──────────────────────────────────────────

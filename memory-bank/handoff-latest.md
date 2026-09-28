@@ -1,8 +1,52 @@
 # Latest Handoff (2026-09-28)
 
+## Cross-Tool Continuity
+- `AGENTS.md` is the tool-neutral repository contract: required memory-bank
+  reads, guardrails, verification commands, and handoff/update rules.
+- `CLAUDE.md` and `.github/copilot-instructions.md` are intentionally small
+  compatibility pointers. They do not duplicate project state; every assistant
+  or IDE must treat `memory-bank/` as canonical.
+- The complete memory-bank set now records the readability work, attenuation
+  snapshot behavior, sidebar order, verification status, architecture,
+  decisions, and native Windows validation checklist. Work can resume from the
+  repository alone without this conversation.
+
+## Persistent Attenuation Results and Navigation Order
+- The Waveform sidebar now lists **Attenuation & Safe Zone** before
+  **Signature Hole Analysis**.
+- A successful Calculate Regression action stores a complete result snapshot:
+  Plotly figure, fit, equations, and selected channels. Normal Streamlit reruns
+  from table edits, Safe Zone inputs, or SNI prediction tables render that same
+  snapshot instead of making the graph and Regression Results disappear.
+- Only another successful **Calculate Regression** click replaces the snapshot.
+  Invalid recalculation attempts show their validation error while preserving
+  the previous valid graph/results and calculator fit.
+- Added `tests/test_ppv_analysis.py` for ordering, result construction,
+  snapshot independence, validation, and persistent render wiring. The full
+  suite passes **164 tests, 1 skipped**; compilation and `git diff --check`
+  pass, and live Streamlit inspection confirmed the new sidebar order.
+
+## Readability and Visual Emphasis
+- Active branch is `windows-packaging` at pushed commit `fe21d8c`; the
+  readability work described here is currently uncommitted.
+- Increased the global Streamlit type scale, sidebar uploader/navigation text,
+  normal expander headings/content, metrics, and Plotly axis/title/tick fonts.
+- Kept exactly two long reference panels compact: **About USBM Scaling** and
+  **PDF chart renderer diagnostics**.
+- Bolded and highlighted important PPV/PVS and compliance-result values, and
+  enlarged axes/subplot labels across waveform, FFT, derivative/integral,
+  monitoring, trend, and compliance charts.
+- Recording Info and other Streamlit metric values remain at the compact
+  1.9-rem scale accepted by the user for now. The 95% confidence equation has
+  a dedicated amber/navy highlight panel.
+- Added `tests/test_ui_readability.py`. Focused UI/compliance/monitoring/report
+  coverage passed **82 tests**; the complete suite now passes **164 tests, 1
+  skipped**. Python compilation and `git diff --check` passed. Live Streamlit
+  desktop inspection confirmed the enlarged sidebar hierarchy.
+
 ## Plotly 6 / Kaleido 1 Renderer Migration
-- Active branch remains `windows-packaging`, based on commit `4d9feb2`. The
-  migration is implemented in the working tree and is intentionally uncommitted.
+- The renderer migration, Windows follow-up fixes, and simplified guide are
+  committed and pushed through `fe21d8c` on `windows-packaging`.
 - Runtime pins are now **Plotly 6.9.0** and **Kaleido 1.4.0** in both dependency
   manifests. The versions were checked against the official PyPI projects and
   Plotly/Kaleido documentation before they were selected.

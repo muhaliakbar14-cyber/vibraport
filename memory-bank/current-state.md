@@ -6,6 +6,9 @@ Last updated: 2026-09-28.
 - The product is now branded **METIS Analytics**, with the descriptor
   **Vibration Analysis Software**. It remains a Streamlit-first application;
   no framework rewrite is currently planned.
+- Cross-tool continuation is repository-native: `AGENTS.md`, `CLAUDE.md`, and
+  `.github/copilot-instructions.md` direct assistants/IDEs to the canonical
+  `memory-bank/` files rather than relying on chat history.
 - The active product supports local/offline browser use now and can later be deployed online. A SaaS/authentication layer is deferred until the engineering workflow is stable.
 - Primary priorities are reliable `.sis`/`.csv` handling, correct engineering calculations, professional reports, and clear compliance results.
 
@@ -13,7 +16,7 @@ Last updated: 2026-09-28.
 - Entrypoint: `app.py`.
 - Three top-level workspaces are explicitly routed: Waveform, Bargraph
   Monitoring, and Print Report. Waveform contains Data Overview, Signal
-  Analysis, Signature Hole Analysis, and Attenuation & Safe Zone. Bargraph
+  Analysis, Attenuation & Safe Zone, and Signature Hole Analysis. Bargraph
   Monitoring contains Data Overview, Trends, Events & Thresholds, and PPV
   Compliance.
 - Streamlit's automatic multipage navigation is disabled; every `pages/*.py` module must be imported and routed explicitly in `app.py`.
@@ -82,6 +85,22 @@ Last updated: 2026-09-28.
   copy of any standard limit curve.
 
 ## Reporting and Presentation
+- Application readability now uses a larger global type scale for body copy,
+  sidebar upload/navigation controls, normal expander content, metrics, and
+  Plotly titles/ticks. The long **About USBM Scaling** and **PDF chart renderer
+  diagnostics** reference expanders intentionally remain compact.
+- High-value results are visually emphasized: waveform PPV/PVS summaries and
+  compliance result fields use bold text and stronger METIS navy/cyan contrast.
+  Signal, monitoring, FFT, derivative/integral, and compliance plots use larger
+  axis and subplot-title typography without changing report calculations.
+- Recording Info and other Streamlit metric values retain the compact 1.9-rem
+  scale accepted by the user for now. The 95% confidence equation uses a
+  dedicated amber/navy result panel.
+- Attenuation & Safe Zone is listed before Signature Hole Analysis in the
+  Waveform sidebar. Its graph, equations, and correlation coefficient are kept
+  as the last successful regression snapshot; table, channel, calculator, and
+  prediction-table edits do not replace or hide them. A new successful
+  **Calculate Regression** click is the only update trigger.
 - An Indonesian end-user guide is maintained at
   `docs/PANDUAN_PENGGUNAAN_METIS_ANALYTICS.md`. It covers portable RAR
   extraction, tray lifecycle, data workflows, PDF generation/interpretation,
@@ -117,6 +136,10 @@ Last updated: 2026-09-28.
 - SNI, DIN, and BS report variants were rendered and visually inspected on 2026-08-31.
 
 ## Verification Status
+- The readability and attenuation-state changes pass focused coverage and the
+  full branch suite: **164 passed, 1 skipped**. Python compilation and
+  `git diff --check` pass, and live Streamlit inspection confirmed the larger
+  sidebar/upload/menu hierarchy at desktop width.
 - On 2026-09-28, focused renderer/report/Windows-packaging coverage passed
   **36 tests** with one browser-availability skip; the complete suite passed
   **152 tests** with the same skip. Supplying the installed Chromium-compatible

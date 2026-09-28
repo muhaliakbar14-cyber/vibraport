@@ -324,7 +324,7 @@ def _build_trend_figure(
         )
 
     figure.update_xaxes(title_text="Elapsed time (min)", row=len(channels), col=1)
-    figure.update_yaxes(rangemode="tozero", tickfont=dict(size=10))
+    figure.update_yaxes(rangemode="tozero", tickfont=dict(size=12))
     if synchronize_y_axis:
         for row in range(2, len(channels) + 1):
             figure.update_yaxes(matches="y", row=row, col=1)
@@ -337,7 +337,12 @@ def _build_trend_figure(
         uirevision=f"trends-{trend_key}",
     )
     for annotation in figure.layout.annotations:
-        annotation.update(font=dict(size=12))
+        annotation.update(
+            font=dict(
+                family="Inter SemiBold, Inter, Arial, sans-serif",
+                size=14,
+            )
+        )
     return rendered_points, figure
 
 
@@ -397,7 +402,7 @@ def _build_overlay_trend_figure(records, channels, trend_key, statistic_label):
         plot_bgcolor="white",
         uirevision=f"trends-overlay-{trend_key}",
     )
-    figure.update_yaxes(rangemode="tozero", tickfont=dict(size=10))
+    figure.update_yaxes(rangemode="tozero", tickfont=dict(size=12))
     return rendered_points, figure
 
 

@@ -167,8 +167,13 @@ def render(df, time_axis, metadata, sampling_rate):
     )
 
     st.markdown("## Channel Summary")
+    channel_summary = pd.DataFrame(_channel_summary_rows(records))
+    highlighted_summary = channel_summary.style.set_properties(
+        subset=["Result", "Worst utilization (%)", "Critical PPV (mm/s)"],
+        **{"font-weight": "700", "color": "#103B5C"},
+    )
     st.dataframe(
-        pd.DataFrame(_channel_summary_rows(records)),
+        highlighted_summary,
         width="stretch",
         hide_index=True,
     )

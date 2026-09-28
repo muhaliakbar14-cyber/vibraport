@@ -2,6 +2,11 @@
 
 Use this guide every time you continue this project in a new chat.
 
+Repository-aware assistants should load `AGENTS.md` automatically. Claude Code
+can use `CLAUDE.md`, and GitHub Copilot can use
+`.github/copilot-instructions.md`; each adapter points back to the same memory
+bank so handoffs remain tool-independent.
+
 ## 1) Before Ending A Conversation
 1. Ensure these are updated:
    - `memory-bank/current-state.md`

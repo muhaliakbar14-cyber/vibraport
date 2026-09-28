@@ -63,6 +63,10 @@ def _render_renderer_diagnostics(key_prefix: str) -> None:
     """Show browser/version diagnostics and an opt-in real render self-test."""
 
     with st.expander("PDF chart renderer diagnostics"):
+        st.markdown(
+            '<span class="metis-compact-expander" aria-hidden="true"></span>',
+            unsafe_allow_html=True,
+        )
         diagnostics = get_renderer_diagnostics(run_self_test=False)
         st.write(f"Plotly: {diagnostics.plotly_version}")
         st.write(f"Kaleido: {diagnostics.kaleido_version}")

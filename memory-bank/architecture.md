@@ -60,6 +60,11 @@ Last updated: 2026-09-28.
 - `core/sni_chart.py`: compatibility wrapper for older SNI call sites.
 - `core/scaling.py`, `core/engine.py`, `core/superposition.py`: Signature Hole Analysis simulation and USBM scaling.
 - `regression/` and `optimizer/`: attenuation and delay-analysis logic.
+- `pages/ppv_analysis.py`: attenuation UI and explicit regression-snapshot
+  boundary. A successful Calculate Regression click builds and stores the
+  Plotly figure, fitted coefficients, equations, and selected channels in
+  Streamlit session state. Ordinary table/calculator reruns render that frozen
+  snapshot until the next successful calculation.
 
 ## Report Pipeline
 - `pages/report.py` builds ReportLab PDFs; `pages/monitoring_report.py` uses the
@@ -90,6 +95,9 @@ Last updated: 2026-09-28.
 - Cache expensive parsing by file content.
 - Use `st.form` for grouped calculations and `st.fragment` where isolated reruns materially help.
 - Use `width="stretch"` instead of deprecated `use_container_width=True` in touched code.
+- Regression graphs/results that the user explicitly calculates must persist
+  across unrelated widget reruns and update only on the corresponding action
+  button; calculator inputs may read the stored fit without mutating it.
 - Measurement location is explanatory context, not a compliance selector.
 - Bargraph charts may downsample for display, but statistics, alert counts,
   event detection, and compliance inputs must always use the original

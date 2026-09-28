@@ -91,7 +91,7 @@ def build_compliance_chart(
                 x=_frequency_axis_position(label_frequency, standard_id),
                 y=_ppv_axis_position(label_limit, standard_id), xref="x", yref="y",
                 text=category.short_label, showarrow=False,
-                font=dict(size=7 if compact else 10, color=style["color"]),
+                font=dict(size=7 if compact else 12, color=style["color"]),
                 xanchor="right", yanchor="bottom",
             )
 
@@ -120,7 +120,7 @@ def build_compliance_chart(
         fig.add_trace(go.Scatter(
             x=[freq], y=[display_ppv], mode="markers+text", name=label,
             text=[short_label], textposition=text_position,
-            textfont=dict(size=7 if compact else 10, color=marker["color"]),
+            textfont=dict(size=7 if compact else 12, color=marker["color"]),
             marker=dict(
                 symbol=marker["symbol"], color=marker["color"],
                 size=7 if compact else marker["size"],
@@ -142,7 +142,7 @@ def build_compliance_chart(
         title=dict(
             text=chart_title(standard_id, assessment), x=0.5, xanchor="center",
             font=dict(family="Inter SemiBold, Inter, Arial, sans-serif",
-                      size=11 if compact else 19, color="#20242A"),
+                      size=11 if compact else 21, color="#20242A"),
         ),
         xaxis=dict(
             type="linear" if linear_frequency_axis else "log", title="Frequency (Hz)",
@@ -150,7 +150,7 @@ def build_compliance_chart(
                    [np.log10(spec.x_range[0]), np.log10(spec.x_range[1])]),
             tickvals=list(spec.x_ticks), ticktext=[format_limit(v) for v in spec.x_ticks],
             showgrid=False, minor=dict(showgrid=False),
-            tickfont=dict(size=7 if compact else 10), title_font=dict(size=8 if compact else 12),
+            tickfont=dict(size=7 if compact else 12), title_font=dict(size=8 if compact else 15),
             linecolor="#4D535A", mirror=True,
         ),
         yaxis=dict(
@@ -158,13 +158,13 @@ def build_compliance_chart(
             range=[plot_y_min, plot_y_max] if linear_ppv_axis else [0, 2],
             tickvals=list(ticks), ticktext=[format_limit(v) for v in ticks],
             showgrid=False, minor=dict(showgrid=False),
-            tickfont=dict(size=7 if compact else 10), title_font=dict(size=8 if compact else 12),
+            tickfont=dict(size=7 if compact else 12), title_font=dict(size=8 if compact else 15),
             linecolor="#4D535A", mirror=True,
         ),
         height=500, hovermode="closest", showlegend=False,
         margin=dict(t=30 if compact else 58, b=34 if compact else 58,
                     l=38 if compact else 62, r=10 if compact else 28),
-        font=dict(family="Inter, Arial, sans-serif", size=7 if compact else 10, color="#30343B"),
+        font=dict(family="Inter, Arial, sans-serif", size=7 if compact else 12, color="#30343B"),
         plot_bgcolor="white", paper_bgcolor="white",
     )
 
@@ -188,7 +188,7 @@ def build_compliance_chart(
             x=_frequency_axis_position(x_mid, standard_id),
             y=_ppv_axis_position(band_label_ppv, standard_id),
             xref="x", yref="y", text=label, showarrow=False,
-            font=dict(size=5.5 if compact else 8.5, color="#68717B"),
+            font=dict(size=5.5 if compact else 10, color="#68717B"),
             xanchor="center", yanchor="top",
         )
     return fig

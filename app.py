@@ -63,13 +63,146 @@ st.markdown(
         font-weight: 600 !important;
         letter-spacing: -0.018em;
     }}
+    html {{
+        font-size: 17px;
+    }}
+    .stApp [data-testid="stMarkdownContainer"] p,
+    .stApp [data-testid="stMarkdownContainer"] li {{
+        font-size: 1rem;
+        line-height: 1.55;
+    }}
+    .stApp [data-testid="stCaptionContainer"] p {{
+        font-size: 0.92rem !important;
+        line-height: 1.45;
+    }}
+    .stApp label p,
+    .stApp button p {{
+        font-size: 0.98rem;
+    }}
+    .stApp button {{
+        font-weight: 600;
+    }}
+
+    /* Sidebar controls are primary navigation, not secondary fine print. */
+    [data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stSidebar"] label p,
+    [data-testid="stSidebar"] button p,
+    [data-testid="stSidebar"] [role="radiogroup"] p {{
+        font-size: 1rem !important;
+        line-height: 1.45;
+    }}
+    [data-testid="stSidebar"] [role="radiogroup"] label p,
+    [data-testid="stSidebar"] [data-testid="stSelectbox"] label p,
+    [data-testid="stSidebar"] [data-testid="stFileUploader"] label p {{
+        font-weight: 600 !important;
+    }}
+    [data-testid="stSidebar"] [data-baseweb="select"] > div {{
+        font-size: 1rem !important;
+        min-height: 2.7rem;
+    }}
+
+    /* Make normal expander content readable while leaving the two long,
+       secondary reference panels deliberately compact. */
+    [data-testid="stExpander"]:not(:has(.metis-compact-expander)) summary p {{
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stExpander"]:not(:has(.metis-compact-expander))
+    [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stExpander"]:not(:has(.metis-compact-expander))
+    [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] li,
+    [data-testid="stExpander"]:not(:has(.metis-compact-expander))
+    [data-testid="stExpanderDetails"] label p,
+    [data-testid="stExpander"]:not(:has(.metis-compact-expander))
+    [data-testid="stExpanderDetails"] button p {{
+        font-size: 1rem !important;
+        line-height: 1.5;
+    }}
+    [data-testid="stExpander"]:has(.metis-compact-expander) summary p {{
+        font-size: 0.92rem !important;
+        font-weight: 500 !important;
+    }}
+    [data-testid="stExpander"]:has(.metis-compact-expander)
+    [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] p,
+    [data-testid="stExpander"]:has(.metis-compact-expander)
+    [data-testid="stExpanderDetails"] [data-testid="stMarkdownContainer"] li {{
+        font-size: 0.88rem !important;
+        line-height: 1.45;
+    }}
+    .metis-compact-expander {{
+        display: none;
+    }}
+
+    /* Engineering results should visually outrank surrounding helper text. */
+    [data-testid="stMetricLabel"] p {{
+        font-size: 0.96rem !important;
+        font-weight: 600 !important;
+    }}
+    [data-testid="stMetricValue"] {{
+        font-size: 1.9rem !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.025em;
+    }}
+    .metis-key-result {{
+        margin-top: 0.65rem;
+        padding: 0.7rem 0.9rem;
+        border-left: 4px solid #00A9CE;
+        border-radius: 0.3rem;
+        background: rgba(0, 169, 206, 0.08);
+        font-size: 1.02rem;
+        font-weight: 600;
+    }}
+    .metis-key-result strong {{
+        font-size: 1.12rem;
+        font-weight: 700;
+        color: #103B5C;
+    }}
+    .metis-confidence-result {{
+        margin: 0.55rem 0 0.9rem;
+        padding: 0.8rem 1rem;
+        border-left: 5px solid #FFB300;
+        border-radius: 0.35rem;
+        background: rgba(255, 179, 0, 0.12);
+    }}
+    .metis-confidence-result__label {{
+        color: #754E00;
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1.35;
+    }}
+    .metis-confidence-result__equation {{
+        margin-top: 0.2rem;
+        color: #103B5C;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1.4;
+    }}
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 pio.templates["metis"] = go.layout.Template(
-    layout=go.Layout(font=dict(family="Inter, Segoe UI, Arial, sans-serif", color="#30343B"))
+    layout=go.Layout(
+        font=dict(
+            family="Inter, Segoe UI, Arial, sans-serif",
+            size=14,
+            color="#30343B",
+        ),
+        title=dict(font=dict(size=20, color="#20242A")),
+        xaxis=dict(
+            title=dict(font=dict(size=16, color="#20242A"), standoff=10),
+            tickfont=dict(size=13),
+            automargin=True,
+        ),
+        yaxis=dict(
+            title=dict(font=dict(size=16, color="#20242A"), standoff=10),
+            tickfont=dict(size=13),
+            automargin=True,
+        ),
+        legend=dict(font=dict(size=13)),
+        hoverlabel=dict(font=dict(size=13)),
+    )
 )
 pio.templates.default = "plotly_white+metis"
 
@@ -164,8 +297,8 @@ with st.sidebar:
             [
                 "📊 Data Overview",
                 "📡 Signal Analysis",
-                "💥 Signature Hole Analysis",
                 "📈 Attenuation & Safe Zone",
+                "💥 Signature Hole Analysis",
             ],
             key="waveform_page",
         )

@@ -2,6 +2,10 @@
 
 Purpose: persistent project memory for session-to-session continuity.
 
+Root compatibility files (`AGENTS.md`, `CLAUDE.md`, and
+`.github/copilot-instructions.md`) direct supported AI/IDE tools here. They are
+entry points only; this directory remains the canonical source of truth.
+
 ## How to Use
 At the start of each session, ask the assistant to:
 1. Read this folder first.
