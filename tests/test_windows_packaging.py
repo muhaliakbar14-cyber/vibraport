@@ -30,6 +30,9 @@ def test_pyinstaller_spec_is_valid_python_and_declares_required_data():
     assert 'PROJECT_ROOT / "app.py"' in spec_text
     assert 'PROJECT_ROOT / "assets"' in spec_text
     assert '"streamlit", "plotly", "kaleido"' in spec_text
+    assert 'module_name == "kaleido.mocker"' in spec_text
+    assert 'module_name.startswith("kaleido.mocker.")' in spec_text
+    assert 'collect_options["filter_submodules"]' in spec_text
     assert '"choreographer", "logistro", "orjson"' in spec_text
     assert "not Chrome or Edge" in spec_text
     assert 'contents_directory="_internal"' in spec_text

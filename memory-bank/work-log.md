@@ -551,3 +551,16 @@
 - Validation: focused renderer/launcher/packaging suite **32 passed, 1
   skipped**; complete suite **153 passed, 1 skipped**; Python compilation and
   `git diff --check` passed.
+
+## 2026-09-28 — Exclude Kaleido mocker CLI from PyInstaller discovery
+- The next Windows 10 build reached PyInstaller but failed in
+  `collect_all("kaleido")`: recursive discovery imported
+  `kaleido.mocker._args`, whose module-level `argparse.parse_args()` consumed
+  PyInstaller isolated-child arguments and raised `SystemExit: 2`.
+- Added a Kaleido-specific `filter_submodules` callback to the spec that omits
+  `kaleido.mocker` and descendants while retaining the actual renderer runtime,
+  Choreographer, Logistro, and Orjson. Added packaging-source assertions for
+  the exclusion.
+- Validation: filtered discovery collected 14 Kaleido runtime modules with no
+  mocker descendants; focused suite **32 passed, 1 skipped**; complete suite
+  **153 passed, 1 skipped**; spec compilation and `git diff --check` passed.

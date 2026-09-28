@@ -27,8 +27,26 @@ datas = [
     (str(PROJECT_ROOT / "assets"), "assets"),
 ]
 binaries = []
+
+
+def _kaleido_runtime_submodule(module_name):
+    # kaleido.mocker is a developer CLI whose module-level argparse parser
+    # consumes PyInstaller isolated-worker arguments during collection. METIS
+    # never imports it; excluding it prevents the Windows build-time SystemExit.
+    return not (
+        module_name == "kaleido.mocker"
+        or module_name.startswith("kaleido.mocker.")
+    )
+
+
 for package_name in ("streamlit", "plotly", "kaleido"):
-    package_datas, package_binaries, package_hiddenimports = collect_all(package_name)
+    collect_options = {}
+    if package_name == "kaleido":
+        collect_options["filter_submodules"] = _kaleido_runtime_submodule
+    package_datas, package_binaries, package_hiddenimports = collect_all(
+        package_name,
+        **collect_options,
+    )
     datas += package_datas
     binaries += package_binaries
     hiddenimports += package_hiddenimports

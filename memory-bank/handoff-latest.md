@@ -53,6 +53,12 @@
   before recording its exit code, preserving `exit code 23` diagnostics on
   Windows; focused coverage passed **32 tests, 1 skipped** and the full suite
   passed **153 tests, 1 skipped** before pushing.
+- Second Windows 10 rebuild follow-up: PyInstaller failed while recursively
+  collecting `kaleido.mocker`. That optional developer CLI parses arguments at
+  import time and mistook PyInstaller's isolated-worker numbers for its own
+  arguments. The spec now filters `kaleido.mocker` and its descendants from
+  hidden-import discovery; METIS uses Kaleido's runtime APIs and never imports
+  the mocker package.
 
 ## METIS Analytics Rebrand
 - Rebranded the active application from Vibraport to **METIS Analytics**, named
