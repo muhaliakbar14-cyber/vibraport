@@ -539,3 +539,15 @@
 - Confirmed renderer/browser processes were gone after stopping Streamlit.
   Native Windows 11/PyInstaller validation remains the release gate and is
   detailed in `next-steps.md`.
+
+## 2026-09-28 — Fix Windows renderer-crash exit-code race
+- The first Windows 10 build test run reached the new renderer suite but
+  reported `exit code None` instead of the fake worker's expected code 23.
+- Cause: Windows can close the multiprocessing pipe immediately before its
+  process handle publishes the final `exitcode` value.
+- The EOF crash path now waits up to one second to reap the already-exiting
+  worker before reading its code, then performs the existing process-tree
+  cleanup. Added deterministic coverage for the delayed state transition.
+- Validation: focused renderer/launcher/packaging suite **32 passed, 1
+  skipped**; complete suite **153 passed, 1 skipped**; Python compilation and
+  `git diff --check` passed.

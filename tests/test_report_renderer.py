@@ -260,6 +260,17 @@ def test_renderer_crash_is_identified_after_retry(tmp_path):
         manager.shutdown()
 
 
+def test_crash_exit_code_waits_for_windows_process_state_update():
+    class DelayedExitProcess:
+        exitcode = None
+
+        def join(self, timeout=None):
+            assert timeout == report_renderer.CRASH_EXITCODE_WAIT_SECONDS
+            self.exitcode = 23
+
+    assert report_renderer._reap_process_exit_code(DelayedExitProcess()) == 23
+
+
 def test_browser_startup_failure_is_identified(tmp_path):
     manager, _counter = _manager("startup_error")
     try:

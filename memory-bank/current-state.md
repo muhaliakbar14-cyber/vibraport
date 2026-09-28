@@ -183,6 +183,10 @@ Last updated: 2026-09-28.
   11 portable build before release. Linux verification used an explicit local
   Chromium-compatible browser because this environment has neither Chrome nor
   Edge installed; it does not prove frozen Windows browser startup/cleanup.
+- The first Windows 10 test gate exposed and then drove a fix for delayed
+  multiprocessing exit-code publication after renderer pipe EOF. The final
+  post-fix suite passes **153 tests, 1 skipped**; native bundle creation and
+  application-level browser validation remain outstanding.
 
 ## Windows Packaging Track
 - The portable product directory and executable are now

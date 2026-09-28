@@ -26,6 +26,7 @@ DEFAULT_RENDER_TIMEOUT_SECONDS = 60.0
 DEFAULT_RENDER_ATTEMPTS = 2
 MINIMUM_BROWSER_STARTUP_TIMEOUT_SECONDS = 5.0
 WORKER_SHUTDOWN_TIMEOUT_SECONDS = 5.0
+CRASH_EXITCODE_WAIT_SECONDS = 1.0
 
 
 class RendererError(RuntimeError):
@@ -368,6 +369,18 @@ def terminate_process_tree(process, *, wait_seconds: float = WORKER_SHUTDOWN_TIM
         process.join(timeout=wait_seconds)
 
 
+def _reap_process_exit_code(process, *, wait_seconds: float = CRASH_EXITCODE_WAIT_SECONDS):
+    """Allow Windows multiprocessing to publish an exited worker's return code."""
+
+    if process is None:
+        return None
+    try:
+        process.join(timeout=wait_seconds)
+    except (AssertionError, ValueError):
+        pass
+    return process.exitcode
+
+
 class RendererManager:
     """Serialize requests through one reusable, replaceable render worker."""
 
@@ -481,7 +494,10 @@ class RendererManager:
         try:
             response = connection.recv()
         except (EOFError, OSError):
-            exit_code = process.exitcode if process is not None else None
+            # On Windows the pipe can reach EOF just before multiprocessing's
+            # process handle reports its final exit code. Briefly reap the
+            # already-exiting worker so diagnostics retain the real code.
+            exit_code = _reap_process_exit_code(process)
             self._reset()
             raise RendererCrashError(
                 f"The renderer worker crashed (exit code {exit_code}) while using "

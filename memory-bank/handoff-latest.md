@@ -47,6 +47,12 @@
 - Native Windows/PyInstaller execution is the remaining release gate. Rebuild
   on Windows 11 and run the checklist in `next-steps.md`; do not treat Linux
   structural and unit coverage as a substitute for that platform test.
+- First Windows 10 rebuild follow-up: the test gate exposed a process-state
+  race where pipe EOF arrived before `multiprocessing.Process.exitcode` changed
+  from `None`. The crash path now briefly joins the already-exiting worker
+  before recording its exit code, preserving `exit code 23` diagnostics on
+  Windows; focused coverage passed **32 tests, 1 skipped** and the full suite
+  passed **153 tests, 1 skipped** before pushing.
 
 ## METIS Analytics Rebrand
 - Rebranded the active application from Vibraport to **METIS Analytics**, named
