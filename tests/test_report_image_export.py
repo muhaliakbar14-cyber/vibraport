@@ -60,6 +60,91 @@ def test_synthetic_multi_file_report_with_every_optional_section(monkeypatch):
     assert "Records summary" in text
     assert text.count("Derived Signal Analysis") == 2
     assert text.count("FFT Analysis") == 2
+    assert text.count("Acceleration at Peak Displacement") == 2
+    assert "Acceleration in g" in text
+    assert "Time of Peak (t)" in text
+
+
+def test_derived_signal_analysis_accel_at_peak_displacement_table(monkeypatch):
+    file_data = _waveform_report_file("synthetic-single.sis", amplitude=1.0)
+
+    def fake_image_export(*_args, **_kwargs):
+        buffer = io.BytesIO()
+        Image.new("RGB", (80, 48), "white").save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    monkeypatch.setattr(report, "_to_image", fake_image_export)
+    pdf_bytes = report._build_metis_pdf(
+        [file_data],
+        {
+            "project_name": "Derived Signal Verification",
+            "operator": "METIS Analytics QA",
+            "inc_records": False,
+            "inc_ad": True,
+            "inc_fft": False,
+        },
+    )
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    assert len(reader.pages) == 2
+    derived_page_text = reader.pages[1].extract_text() or ""
+    assert "Derived Signal Analysis" in derived_page_text
+    assert "Acceleration" in derived_page_text
+    assert "Displacement" in derived_page_text
+    assert "Acceleration at Peak Displacement (Amax)" in derived_page_text
+    assert "Peak Displacement" in derived_page_text
+    assert "Time of Peak (t)" in derived_page_text
+    assert "Accel. at Peak Disp." in derived_page_text
+    assert "Acceleration in g" in derived_page_text
+    assert "Vertical" in derived_page_text
+    assert "Longitudinal" in derived_page_text
+    assert "Transversal" in derived_page_text
+    assert "mm" in derived_page_text
+    assert "mm/s²" in derived_page_text
+    assert "g" in derived_page_text
+    assert "METIS Analytics™" in derived_page_text
+    assert "METIS Analytics™ by ABDIYASA" in derived_page_text
+
+
+def test_fft_analysis_frequency_results_table(monkeypatch):
+    file_data = _waveform_report_file("synthetic-fft.sis", amplitude=1.0)
+
+    def fake_image_export(*_args, **_kwargs):
+        buffer = io.BytesIO()
+        Image.new("RGB", (80, 48), "white").save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    monkeypatch.setattr(report, "_to_image", fake_image_export)
+    pdf_bytes = report._build_metis_pdf(
+        [file_data],
+        {
+            "project_name": "FFT Verification",
+            "operator": "METIS Analytics QA",
+            "inc_records": False,
+            "inc_ad": False,
+            "inc_fft": True,
+        },
+    )
+
+    reader = PdfReader(io.BytesIO(pdf_bytes))
+    assert len(reader.pages) == 2
+    fft_page_text = reader.pages[1].extract_text() or ""
+    assert "FFT Analysis" in fft_page_text
+    assert "Frequency Results" in fft_page_text
+    assert "Channel" in fft_page_text
+    assert "Zero Crossing" in fft_page_text
+    assert "FFT Peak" in fft_page_text
+    assert "Energy 25%" in fft_page_text
+    assert "Energy 50%" in fft_page_text
+    assert "Energy 75%" in fft_page_text
+    assert "Vertical" in fft_page_text
+    assert "Longitudinal" in fft_page_text
+    assert "Transversal" in fft_page_text
+    assert "12 Hz" in fft_page_text
+    assert "16 Hz" in fft_page_text
+    assert "20 Hz" in fft_page_text
+
+
 
 
 def _waveform_report_file(name: str, amplitude: float) -> dict:

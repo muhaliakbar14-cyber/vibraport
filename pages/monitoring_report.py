@@ -275,7 +275,7 @@ def render(df, time_axis, metadata, sampling_rate):
         except BrowserNotFoundError as exc:
             st.error(
                 f"PDF charts are unavailable: {exc} Install Chrome or Edge, restart "
-                "METIS Analytics, and run the renderer self-test."
+                "METIS Analytics™, and run the renderer self-test."
             )
         except BrowserStartupError as exc:
             st.error(
@@ -542,7 +542,7 @@ def _build_monitoring_pdf(
         canvas.line(margin, page_height - 16 * mm, page_width - margin, page_height - 16 * mm)
         canvas.setFillColor(navy)
         canvas.setFont(bold_font, 8)
-        canvas.drawString(margin, page_height - 12 * mm, "METIS ANALYTICS")
+        canvas.drawString(margin, page_height - 12 * mm, "METIS Analytics™")
         canvas.setFillColor(grey)
         canvas.setFont(body_font, 7)
         canvas.drawRightString(
@@ -551,7 +551,7 @@ def _build_monitoring_pdf(
             "Bargraph Monitoring Report",
         )
         canvas.line(margin, 14 * mm, page_width - margin, 14 * mm)
-        canvas.drawString(margin, 10 * mm, "METIS ANALYTICS by ABDIYASA")
+        canvas.drawString(margin, 10 * mm, "METIS Analytics™ by ABDIYASA")
         canvas.drawRightString(
             page_width - margin,
             10 * mm,
@@ -621,7 +621,7 @@ def _build_monitoring_pdf(
             Spacer(1, 8 * mm),
             Paragraph(
                 "Bargraph values are interval summaries stored by the instrument. "
-                "Unflagged channels are reported as interval peaks; METIS Analytics does "
+                "Unflagged channels are reported as interval peaks; METIS Analytics™ does "
                 "not reconstruct waveform RMS or VDV from these values.",
                 styles["small"],
             ),
@@ -721,8 +721,8 @@ def _build_monitoring_pdf(
         rightMargin=15 * mm,
         topMargin=21 * mm,
         bottomMargin=18 * mm,
-        title=f"METIS Analytics Bargraph Monitoring Report - {metadata.get('_filename', '')}",
-        author=options.get("operator") or "METIS Analytics",
+        title=f"METIS Analytics™ Bargraph Monitoring Report - {metadata.get('_filename', '')}",
+        author=options.get("operator") or "METIS Analytics™",
     )
     document.build(story, canvasmaker=HeaderFooterCanvas)
     return buffer.getvalue()

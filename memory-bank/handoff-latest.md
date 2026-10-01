@@ -1,4 +1,18 @@
-# Latest Handoff (2026-09-28)
+# Latest Handoff (2026-10-01)
+
+## Derived Signal Analysis Layout, Amax Subscript & FFT Frequency Results
+- Derived Signal Analysis PDF report page:
+  - Spacing after the Acceleration graph (before the Displacement graph heading) and after the Displacement graph (before the Acceleration at Peak Displacement heading) was given clear breathing room.
+  - Section heading was updated to **Acceleration at Peak Displacement (A<sub>max</sub>)** with "max" rendered as a proper subscript (`A<sub>max</sub>`).
+  - Added a structured summary table at the bottom of the page:
+    - Columns: **Channel** (with colored indicator dot `●`), **Peak Displacement** (mm), **Time of Peak (t)** (ms), **Accel. at Peak Disp.** (mm/s²), and **Acceleration in g** (g, highlighted in bold channel color).
+    - Dynamically budgets vertical chart height to ensure single-page fit for both 3-channel and dual-block 6-channel records without clipping or overflow.
+- FFT Analysis PDF report page:
+  - Added the **Frequency Results** table before the FFT graphs matching the structure of `pages/signal_analysis.py`.
+  - Columns: **Channel** (with colored dot `●`), **Zero Crossing**, **FFT Peak**, **Energy 25%**, **Energy 50%**, and **Energy 75%**.
+  - Dynamically budgeted vertical space for the FFT subplots to ensure the table and spectrum charts fit harmoniously on a single page.
+- Standardized branding across waveform and monitoring reports (`pages/report.py` and `pages/monitoring_report.py`) to **METIS Analytics™** (title-case "Analytics" with `™`), replacing all-caps "METIS ANALYTICS" in running headers, footers ("METIS Analytics™ by ABDIYASA"), titles, metadata, and notes.
+- Added regression tests in `tests/test_report_image_export.py` and `tests/test_monitoring_report.py`. Full suite passes **167 tests**; compilation, `git diff --check`, and raster visual inspection (`pdftoppm`) confirmed clean layout, subscript rendering, and alignment.
 
 ## Cross-Tool Continuity
 - `AGENTS.md` is the tool-neutral repository contract: required memory-bank

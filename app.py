@@ -25,7 +25,7 @@ from pages import (
 ASSET_ROOT = Path(__file__).resolve().parent / "assets" / "icons"
 APP_ICON = ASSET_ROOT / "metis-icon.png"
 APP_LOGOGRAM = ASSET_ROOT / "metis-logogram.png"
-st.set_page_config(page_title="METIS Analytics", page_icon=str(APP_ICON), layout="wide")
+st.set_page_config(page_title="METIS Analytics™", page_icon=str(APP_ICON), layout="wide")
 
 
 @st.cache_data(show_spinner=False)
@@ -322,12 +322,12 @@ with st.sidebar:
 # ── No file uploaded ───────────────────────────────────────────────────────────
 if not uploaded_file:
     st.image(str(APP_LOGOGRAM), width=700)
-    st.title("Welcome to METIS Analytics")
+    st.title("Welcome to METIS Analytics™ by ABDIYASA")
     st.caption("Vibration Analysis Software — powered by Vibracord .sis and CSV files")
     st.divider()
 
     st.markdown("""
-    **METIS Analytics** is a vibration data analysis tool designed for **.sis** and CSV files exported
+    **METIS Analytics™** is a vibration data analysis tool designed for **.sis** and CSV files exported
     from **Vibracord** seismograph equipment. Built for engineers working with 
     blasting and vibration monitoring data.
     """)
@@ -366,7 +366,7 @@ if not uploaded_file:
 
     st.divider()
     st.info("👈 Upload a Vibracord .sis or CSV file from the sidebar to get started.")
-    st.caption("METIS Analytics is an independent tool and is not affiliated with Vibracord or its manufacturers.")
+    st.caption("METIS Analytics™ is an independent tool and is not affiliated with Vibracord or its manufacturers.")
     st.stop()
 
 # ── Attenuation & Safe Zone doesn't need the active file's parsed waveform —

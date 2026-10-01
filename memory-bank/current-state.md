@@ -133,13 +133,17 @@ Last updated: 2026-09-28.
   identified in waveform and monitoring report errors.
 - PDF reports include source Notes 1-3 in the top-right header, shared waveform scales, professional Inter fonts, Record Values/PVS, and the selected compliance chart plus measurement-basis explanation.
 - CSV report generation calculates a fallback dominant frequency when device metadata does not provide one.
+- On 2026-10-01, the Derived Signal Analysis page layout was refined: spacing between the page title, Acceleration graph, Displacement graph, and section headers was optimized with breathing room before the Displacement title and before the Acceleration at Peak Displacement title. The section title now explicitly displays "Acceleration at Peak Displacement (Amax)" with "max" rendered as a subscript (`A<sub>max</sub>`). An "Acceleration at Peak Displacement" summary table at the bottom of the page displays Peak Displacement (mm), Time of Peak (ms), Accel. at Peak Disp. (mm/s²), and Acceleration in g (gravity) with matching channel color emphasis.
+- On 2026-10-01, the FFT Analysis page layout was enhanced: a structured "Frequency Results" table was added before the FFT spectrum graphs, displaying Channel (with colored dot), Zero Crossing, FFT Peak, Energy 25%, Energy 50%, and Energy 75% frequency metrics. FFT spectrum graph height is dynamically budgeted to ensure a balanced single-page layout without clipping.
+- Standardized brand typography across all reports (`pages/report.py` and `pages/monitoring_report.py`) to **METIS Analytics™** (with title-case Analytics and trademark symbol `™`), replacing all-caps "METIS ANALYTICS" in running page headers, footers ("METIS Analytics™ by ABDIYASA"), document titles, creator metadata, and explanatory notes.
 - SNI, DIN, and BS report variants were rendered and visually inspected on 2026-08-31.
 
 ## Verification Status
+- Full test suite passes: **167 passed** (or 166 passed, 1 skipped when browser auto-discovery skips without Chrome/Edge). Python compilation and `git diff --check` pass cleanly.
+- Visual inspection of the raster-rendered Derived Signal Analysis and FFT Analysis pages (`pdftoppm`) confirmed balanced vertical spacing, subscripted Amax rendering, and aligned Frequency Results and Acceleration at Peak Displacement tables.
 - The readability and attenuation-state changes pass focused coverage and the
-  full branch suite: **164 passed, 1 skipped**. Python compilation and
-  `git diff --check` pass, and live Streamlit inspection confirmed the larger
-  sidebar/upload/menu hierarchy at desktop width.
+  full branch suite. Python compilation and `git diff --check` pass, and live
+  Streamlit inspection confirmed the larger sidebar/upload/menu hierarchy.
 - On 2026-09-28, focused renderer/report/Windows-packaging coverage passed
   **36 tests** with one browser-availability skip; the complete suite passed
   **152 tests** with the same skip. Supplying the installed Chromium-compatible

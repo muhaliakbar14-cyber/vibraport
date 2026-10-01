@@ -622,3 +622,51 @@
 - Updated memory-bank README/carry guide, architecture, decisions, current
   state, next steps, and latest handoff. The memory bank remains canonical and
   the adapters are only entry points.
+
+## 2026-10-01 — Derived Signal Analysis layout & Acceleration at Peak Displacement
+- Redesigned the "Derived Signal Analysis" page in `pages/report.py`:
+  - Reduced vertical spacing between the page title ("Derived Signal Analysis") and the Acceleration graph heading.
+  - Reduced spacing between graph headings ("Acceleration", "Displacement") and their respective charts.
+  - Reduced spacing between the Acceleration graph and Displacement graph.
+  - Relaxed spacing after each graph (before the Displacement graph heading and before the Acceleration at Peak Displacement heading) for balanced readability.
+  - Streamlined Plotly chart top and bottom margins (`top_margin=22, bottom_margin=24`) with adjusted annotation positioning.
+- Added the "Acceleration at Peak Displacement (Amax)" summary table at the bottom of the page:
+  - Formatted the section title with `A<sub>max</sub>` using ReportLab Platypus Paragraph so "max" is rendered in authentic subscript.
+  - Extracted peak displacement and acceleration at peak displacement from `core.metrics` (`peak_displacement`, `acceleration_at_peak`, `acceleration_in_g`).
+  - Columns: Channel (with colored dot `●`), Peak Displacement (mm), Time of Peak (t) (ms), Accel. at Peak Disp. (mm/s²), and Acceleration in g (gravity, formatted in bold channel color).
+  - Dynamically budgeted vertical chart height to fit 3-channel and dual-block 6-channel records cleanly onto a single A4 page.
+- Added "Frequency Results" table to the "FFT Analysis" page in `pages/report.py`:
+  - Placed before the FFT spectrum graphs to match the structure of `pages/signal_analysis.py`.
+  - Columns: Channel (with colored dot `●`), Zero Crossing, FFT Peak, Energy 25%, Energy 50%, and Energy 75%.
+  - Extracted from `metadata["Channel info"]` with fallback to `calculate_frequency(...)` for files without channel metadata.
+  - Dynamically budgeted chart vertical height to preserve a clean single-page budget.
+- Added regression tests in `tests/test_report_image_export.py`.
+- Validation:
+  - `python -m py_compile pages/report.py tests/test_report_image_export.py`: passed.
+  - `pytest -q`: **167 passed** (all suites passing).
+  - `git diff --check`: passed.
+  - Raster visual inspection via `pdftoppm`: verified balanced vertical spacing, subscripted Amax, sharp charts, and aligned tables on both pages.
+
+## 2026-10-01 — Standardize METIS Analytics™ branding in reports
+- Generalized **METIS Analytics™** (title-case "Analytics" with `™`) across all report text in `pages/report.py` and `pages/monitoring_report.py`:
+  - Replaced all-caps "METIS ANALYTICS" in running header text with "METIS Analytics™".
+  - Replaced all-caps "METIS ANALYTICS by ABDIYASA" in running footer text with "METIS Analytics™ by ABDIYASA".
+  - Updated document title, operator fallback, creator, and footer attribution notes in both waveform and bargraph monitoring report generators.
+  - Updated Streamlit page title and error diagnostic messages to "METIS Analytics™".
+- Added test assertions in `tests/test_report_image_export.py` and `tests/test_monitoring_report.py`.
+- Validation:
+  - `python -m py_compile pages/report.py pages/monitoring_report.py tests/test_report_image_export.py tests/test_monitoring_report.py`: passed.
+  - `pytest -q`: **167 passed**.
+  - `git diff --check`: passed cleanly.
+
+## 2026-10-01 — Refine report page title and section spacing
+- Increased vertical spacing after page titles in `pages/report.py`:
+  - "Derived Signal Analysis": increased spacing from 16 pt to 25 pt before the Acceleration section.
+  - "FFT Analysis": increased spacing from 16 pt to 25 pt before the Frequency Results section.
+- Increased vertical spacing after the Frequency Results table from `tbl_freq_h + 18` to `tbl_freq_h + 28` before the "FFT Spectrum (0–200 Hz)" title.
+- Refined vertical baseline rhythm and margin for the "Acceleration at Peak Displacement (Amax)" title and subtitle.
+- Validation:
+  - `python -m py_compile pages/report.py`: passed.
+  - `pytest -q`: **167 passed**.
+  - `git diff --check`: passed cleanly.
+  - Raster visual inspection via `pdftoppm`: verified balanced and distinct section spacing.

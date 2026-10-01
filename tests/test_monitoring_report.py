@@ -36,6 +36,8 @@ def test_overview_only_pdf_excludes_unselected_sections():
     text = _pdf_text(pdf_bytes)
     assert pdf_bytes.startswith(b"%PDF")
     assert "Bargraph Monitoring Report" in text
+    assert "METIS Analytics™" in text
+    assert "METIS Analytics™ by ABDIYASA" in text
     assert "North Pit" in text
     assert "Monitoring Overview" in text
     assert "Aggregated Trend" not in text
